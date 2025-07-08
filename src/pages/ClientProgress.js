@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { auth } from '../services/auth';
 import { clients, exerciseCompletions } from '../services/airtable';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
   startOfWeek, endOfWeek, eachWeekOfInterval,
-  format
+  format, parse
 } from 'date-fns';
 
 export default function ClientProgress() {
@@ -15,18 +16,17 @@ export default function ClientProgress() {
 
   useEffect(() => {
     (async () => {
-      // 1. Fetch user and their Airtable records
-      const user = await auth.getCurrentUser();  
+      const user = await auth.getCurrentUser();
       const clientRec = await clients.findByEmail(user.email);
       const comps = await exerciseCompletions.listForClient(user.email);
 
-      // 2. Figure out when to start the chart
+      /* -------------------------------------------------------------
+         Work out the first date to chart
+      ------------------------------------------------------------- */
       let startDate;
       if (clientRec['Date Joined']) {
-        // Airtable “Date Joined” is in M/D/YYYY format, so use Date constructor
-        startDate = new Date(clientRec['Date Joined']);
+        startDate = new Date(clientRec['Date Joined']); // Airtable sends ISO here
       } else if (comps.length) {
-        // Or, fall back to the very first completion date
         const earliest = comps
           .map(c => c['Completion Date'])
           .sort((a, b) => new Date(a) - new Date(b))[0];
@@ -35,24 +35,30 @@ export default function ClientProgress() {
         startDate = new Date();
       }
 
-      // 3. Build weekly buckets up through today
+      /* -------------------------------------------------------------
+         Helper that safely parses either "YYYY-MM-DD" or "M/D/YYYY"
+      ------------------------------------------------------------- */
+      const parseDate = str =>
+        str.includes('-')
+          ? new Date(str)                         // ISO
+          : parse(str, 'M/d/yyyy', new Date());  // Airtable UI format
+
+      /* -------------------------------------------------------------
+         Build weekly buckets and count completions
+      ------------------------------------------------------------- */
       const today = new Date();
       const weeks = eachWeekOfInterval({
         start: startOfWeek(startDate),
         end: today
       });
 
-      // 4. Count completions per week
       const chartData = weeks.map(wStart => {
         const wEnd = endOfWeek(wStart);
         const completed = comps.filter(c => {
-          const d = new Date(c['Completion Date']);
+          const d = parseDate(c['Completion Date']);
           return d >= wStart && d <= wEnd;
         }).length;
-        return {
-          week: format(wStart, 'MM/dd'),
-          completed
-        };
+        return { week: format(wStart, 'MM/dd'), completed };
       });
 
       setData(chartData);
@@ -69,7 +75,7 @@ export default function ClientProgress() {
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="week" />
-          <YAxis allowDecimals={false} />   {/* force whole-number ticks */}
+          <YAxis allowDecimals={false} />    {/* 0-1-2-3… */}
           <Tooltip />
           <Bar dataKey="completed" name="Completed" />
         </BarChart>
