@@ -29,7 +29,7 @@ export const clients = {
   },
   findByEmail: async email => {
     const records = await base('Clients')
-      .select({ filterByFormula: `{Email}='${email}'`, maxRecords: 1 })
+      .select({ filterByFormula: `{Email} = '${email}'`, maxRecords: 1 })
       .all();
     if (!records.length) return null;
     const rec = records[0];
@@ -46,12 +46,15 @@ export const assignments = {
   listForClient: async clientEmail => {
     const client = await clients.findByEmail(clientEmail);
     if (!client) return [];
+
+    // Filter assignments where linked Client field contains this client ID
     const records = await base('Assignments')
       .select({
-        filterByFormula: `{Client}='${client.id}'`,
-        fields: ['Client', 'Exercise', 'Sets', 'Reps']
+        filterByFormula: `FIND('${client.id}', ARRAYJOIN({Client}))`,
+        fields: ['Exercise', 'Sets', 'Reps']
       })
       .all();
+
     return records.map(r => ({ id: r.id, ...r.fields }));
   },
   create: async fields => {
@@ -68,20 +71,22 @@ export const exerciseCompletions = {
   listForClient: async clientEmail => {
     const client = await clients.findByEmail(clientEmail);
     if (!client) return [];
-    // fetch assignments
+
+    // Fetch assignments to build OR formula
     const assigns = await assignments.listForClient(clientEmail);
     if (!assigns.length) return [];
-    // build OR formula for assignment IDs
-    const formula = assigns
-      .map(a => `RECORD_ID()='${a.id}'`)
-      .map(cond => `AND({Assignment}='${cond.split("'")[1]}')`)
-      .join(', ');
+
+    const orConditions = assigns
+      .map(a => `FIND('${a.id}', ARRAYJOIN({Assignment}))`)
+      .join(',');
+
     const records = await base('Completions')
-  .select({
-    filterByFormula: `OR(${assigns.map(a => `{Assignment}='${a.id}'`).join(', ')})`,
-    fields: ['Assignment', 'Completion Date', 'Notes']
-  })
-  .all();
+      .select({
+        filterByFormula: `OR(${orConditions})`,
+        fields: ['Assignment', 'Completion Date', 'Notes']
+      })
+      .all();
+
     return records.map(r => ({ id: r.id, ...r.fields }));
   },
   create: async fields => {
@@ -95,3 +100,81 @@ export const exerciseCompletions = {
     await base('Completions').destroy([id]);
   }
 };
+```## src/pages/ClientDashboard.js
+```jsx
+// src/pages/ClientDashboard.js
+import React, { useState, useEffect } from 'react';
+import { auth } from '../services/auth';
+import { assignments, exerciseCompletions, exercises } from '../services/airtable';
+import { formatISO } from 'date-fns';
+
+export default function ClientDashboard() {
+  const [user, setUser] = useState(null);
+  const [assignList, setAssignList] = useState([]);
+  const [completions, setCompletions] = useState([]);
+  const [exerciseMap, setExerciseMap] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      const u = await auth.getCurrentUser();
+      setUser(u);
+
+      const assigns = await assignments.listForClient(u.email);
+      setAssignList(assigns);
+
+      const comps = await exerciseCompletions.listForClient(u.email);
+      setCompletions(comps);
+
+      const exList = await exercises.list();
+      const map = {};
+      exList.forEach(ex => { map[ex.id] = ex.Name; });
+      setExerciseMap(map);
+    })();
+  }, []);
+
+  const todayStr = formatISO(new Date(), { representation: 'date' });
+
+  const handleChange = async assign => {
+    const doneRecord = completions.find(
+      c => c.Assignment === assign.id && c['Completion Date'] === todayStr
+    );
+    if (doneRecord) {
+      await exerciseCompletions.delete(doneRecord.id);
+    } else {
+      await exerciseCompletions.create({
+        Assignment: [assign.id],
+        'Completion Date': todayStr
+      });
+    }
+    const updated = await exerciseCompletions.listForClient(user.email);
+    setCompletions(updated);
+  };
+
+  return (
+    <div>
+      <h2>Today's Exercises</h2>
+      <ul>
+        {assignList.map(a => {
+          const done = completions.some(
+            c => c.Assignment === a.id && c['Completion Date'] === todayStr
+          );
+          const exId = Array.isArray(a.Exercise) ? a.Exercise[0] : null;
+          const exName = exerciseMap[exId] || 'Exercise';
+          return (
+            <li key={a.id}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={done}
+                  onChange={() => handleChange(a)}
+                />{' '}
+                {exName} — {a.Sets}×{a.Reps}
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      <a href="/progress">View Progress</a>
+    </div>
+  );
+}
