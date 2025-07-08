@@ -29,10 +29,7 @@ export const clients = {
   },
   findByEmail: async (email) => {
     const records = await base('Clients')
-      .select({
-        filterByFormula: `{Email} = '${email}'`,
-        maxRecords: 1,
-      })
+      .select({ filterByFormula: `{Email} = '${email}'`, maxRecords: 1 })
       .all();
     if (!records.length) return null;
     const rec = records[0];
@@ -47,16 +44,13 @@ export const clients = {
 // -- Assignments Table (physio assigns exercises to clients)
 export const assignments = {
   listForClient: async (clientEmail) => {
-    const client = await clients.findByEmail(clientEmail);
-    if (!client) return [];
-
+    // Uses a Lookup field in Airtable named "Client Email"
     const records = await base('Assignments')
       .select({
-        filterByFormula: `FIND('${client.id}', ARRAYJOIN({Client}))`,
+        filterByFormula: `{Client Email} = '${clientEmail}'`,
         fields: ['Exercise', 'Sets', 'Reps'],
       })
       .all();
-
     return records.map((r) => ({ id: r.id, ...r.fields }));
   },
   create: async (fields) => {
@@ -71,9 +65,7 @@ export const assignments = {
 // -- Completions Table (daily client check-ins)
 export const exerciseCompletions = {
   listForClient: async (clientEmail) => {
-    const client = await clients.findByEmail(clientEmail);
-    if (!client) return [];
-
+    // Find assignments by client email lookup
     const assigns = await assignments.listForClient(clientEmail);
     if (!assigns.length) return [];
 
@@ -87,7 +79,6 @@ export const exerciseCompletions = {
         fields: ['Assignment', 'Completion Date', 'Notes'],
       })
       .all();
-
     return records.map((r) => ({ id: r.id, ...r.fields }));
   },
   create: async (fields) => {
