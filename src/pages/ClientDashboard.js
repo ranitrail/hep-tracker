@@ -14,13 +14,10 @@ export default function ClientDashboard() {
     (async () => {
       const u = await auth.getCurrentUser();
       setUser(u);
-
       const assigns = await assignments.listForClient(u.email);
       setAssignList(assigns);
-
       const comps = await exerciseCompletions.listForClient(u.email);
       setCompletions(comps);
-
       const exList = await exercises.list();
       const map = {};
       exList.forEach(ex => { map[ex.id] = ex.Name; });
@@ -31,17 +28,21 @@ export default function ClientDashboard() {
   const todayStr = formatISO(new Date(), { representation: 'date' });
 
   const handleChange = async assign => {
+    // Fixed: Handle linked-record array format
     const doneRecord = completions.find(
-      c => c.Assignment === assign.id && c['Completion Date'] === todayStr
+      c => Array.isArray(c.Assignment) && c.Assignment.includes(assign.id) && c['Completion Date'] === todayStr
     );
+    
     if (doneRecord) {
       await exerciseCompletions.delete(doneRecord.id);
     } else {
+      // Fixed: Create completion with array format
       await exerciseCompletions.create({
         Assignment: [assign.id],
         'Completion Date': todayStr
       });
     }
+    
     const updated = await exerciseCompletions.listForClient(user.email);
     setCompletions(updated);
   };
@@ -51,8 +52,9 @@ export default function ClientDashboard() {
       <h2>Today's Exercises</h2>
       <ul>
         {assignList.map(a => {
+          // Fixed: Handle linked-record array format for checking completion
           const done = completions.some(
-            c => c.Assignment === a.id && c['Completion Date'] === todayStr
+            c => Array.isArray(c.Assignment) && c.Assignment.includes(a.id) && c['Completion Date'] === todayStr
           );
           const exId = Array.isArray(a.Exercise) ? a.Exercise[0] : null;
           const exName = exerciseMap[exId] || 'Exercise';
