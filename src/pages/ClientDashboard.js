@@ -1,41 +1,49 @@
 // src/pages/ClientDashboard.js
 import React, { useState, useEffect } from 'react';
-import { assignments, exerciseCompletions } from '../services/airtable';
 import { auth } from '../services/auth';
-import { formatISO, isToday, parseISO } from 'date-fns';
+import { assignments, exerciseCompletions, exercises } from '../services/airtable';
+import { formatISO } from 'date-fns';
 
 export default function ClientDashboard() {
   const [user, setUser] = useState(null);
   const [assignList, setAssignList] = useState([]);
   const [completions, setCompletions] = useState([]);
+  const [exerciseMap, setExerciseMap] = useState({});
 
   useEffect(() => {
     (async () => {
       const u = await auth.getCurrentUser();
       setUser(u);
-      const a = await assignments.listForClient(u.email);
-      setAssignList(a);
-      const c = await exerciseCompletions.listForClient(u.email);
-      setCompletions(c);
+
+      const assigns = await assignments.listForClient(u.email);
+      setAssignList(assigns);
+
+      const comps = await exerciseCompletions.listForClient(u.email);
+      setCompletions(comps);
+
+      const exList = await exercises.list();
+      const map = {};
+      exList.forEach(ex => { map[ex.id] = ex.Name; });
+      setExerciseMap(map);
     })();
   }, []);
 
   const todayStr = formatISO(new Date(), { representation: 'date' });
 
-  const handleChange = async (assign) => {
-    const existing = completions.find(c => c['Assignment ID'] === assign.id && c['Completion Date'] === todayStr);
-    if (existing) {
-      await exerciseCompletions.delete(existing.id);
+  const handleChange = async assign => {
+    const doneRecord = completions.find(
+      c => c.Assignment === assign.id && c['Completion Date'] === todayStr
+    );
+    if (doneRecord) {
+      await exerciseCompletions.delete(doneRecord.id);
     } else {
       await exerciseCompletions.create({
-        'Client Email': user.email,
-        'Assignment ID': assign.id,
+        Assignment: [assign.id],
         'Completion Date': todayStr
       });
     }
-    // Refresh
-    const refreshed = await exerciseCompletions.listForClient(user.email);
-    setCompletions(refreshed);
+    const updated = await exerciseCompletions.listForClient(user.email);
+    setCompletions(updated);
   };
 
   return (
@@ -43,7 +51,11 @@ export default function ClientDashboard() {
       <h2>Today's Exercises</h2>
       <ul>
         {assignList.map(a => {
-          const done = completions.some(c => c['Assignment ID'] === a.id && c['Completion Date'] === todayStr);
+          const done = completions.some(
+            c => c.Assignment === a.id && c['Completion Date'] === todayStr
+          );
+          const exId = Array.isArray(a.Exercise) ? a.Exercise[0] : null;
+          const exName = exerciseMap[exId] || 'Exercise';
           return (
             <li key={a.id}>
               <label>
@@ -51,8 +63,8 @@ export default function ClientDashboard() {
                   type="checkbox"
                   checked={done}
                   onChange={() => handleChange(a)}
-                />
-                {a.ExerciseName} — {a.Sets}×{a.Reps}
+                />{' '}
+                {exName} — {a.Sets}×{a.Reps}
               </label>
             </li>
           );
