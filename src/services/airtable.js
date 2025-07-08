@@ -65,12 +65,13 @@ export const assignments = {
 // -- Completions Table (daily client check-ins)
 export const exerciseCompletions = {
   listForClient: async (clientEmail) => {
-    // Find assignments by client email lookup
+    // get all assignment record-IDs for this client
     const assigns = await assignments.listForClient(clientEmail);
     if (!assigns.length) return [];
 
+    // OR({Assignment} = 'recA', {Assignment} = 'recB', …)
     const filterFormula = `OR(${assigns
-      .map((a) => `FIND('${a.id}', ARRAYJOIN({Assignment}))`)
+      .map(a => `{Assignment} = '${a.id}'`)
       .join(',')})`;
 
     const records = await base('Completions')
@@ -79,7 +80,8 @@ export const exerciseCompletions = {
         fields: ['Assignment', 'Completion Date', 'Notes'],
       })
       .all();
-    return records.map((r) => ({ id: r.id, ...r.fields }));
+
+    return records.map(r => ({ id: r.id, ...r.fields }));
   },
   create: async (fields) => {
     const [record] = await base('Completions').create([{ fields }]);
