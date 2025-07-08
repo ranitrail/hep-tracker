@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import {
   startOfWeek, endOfWeek, eachWeekOfInterval,
-  format, parseISO
+  format
 } from 'date-fns';
 
 export default function ClientProgress() {
@@ -15,38 +15,44 @@ export default function ClientProgress() {
 
   useEffect(() => {
     (async () => {
-      const user = await auth.getCurrentUser();
+      // 1. Fetch user and their Airtable records
+      const user = await auth.getCurrentUser();  
       const clientRec = await clients.findByEmail(user.email);
       const comps = await exerciseCompletions.listForClient(user.email);
 
-      // Determine chart start date:
+      // 2. Figure out when to start the chart
       let startDate;
       if (clientRec['Date Joined']) {
-        startDate = parseISO(clientRec['Date Joined']);
+        // Airtable “Date Joined” is in M/D/YYYY format, so use Date constructor
+        startDate = new Date(clientRec['Date Joined']);
       } else if (comps.length) {
-        startDate = parseISO(
-          comps.reduce(
-            (min, c) => c['Completion Date'] < min ? c['Completion Date'] : min,
-            comps[0]['Completion Date']
-          )
-        );
+        // Or, fall back to the very first completion date
+        const earliest = comps
+          .map(c => c['Completion Date'])
+          .sort((a, b) => new Date(a) - new Date(b))[0];
+        startDate = new Date(earliest);
       } else {
         startDate = new Date();
       }
 
+      // 3. Build weekly buckets up through today
       const today = new Date();
       const weeks = eachWeekOfInterval({
         start: startOfWeek(startDate),
         end: today
       });
 
+      // 4. Count completions per week
       const chartData = weeks.map(wStart => {
         const wEnd = endOfWeek(wStart);
         const completed = comps.filter(c => {
-          const d = parseISO(c['Completion Date']);
+          const d = new Date(c['Completion Date']);
           return d >= wStart && d <= wEnd;
         }).length;
-        return { week: format(wStart, 'MM/dd'), completed };
+        return {
+          week: format(wStart, 'MM/dd'),
+          completed
+        };
       });
 
       setData(chartData);
@@ -63,7 +69,7 @@ export default function ClientProgress() {
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="week" />
-          <YAxis allowDecimals={false} />   {/* whole-number ticks only */}
+          <YAxis allowDecimals={false} />   {/* force whole-number ticks */}
           <Tooltip />
           <Bar dataKey="completed" name="Completed" />
         </BarChart>
