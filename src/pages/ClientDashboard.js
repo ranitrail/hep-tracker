@@ -3,48 +3,87 @@ import React, { useState, useEffect } from 'react';
 import { auth } from '../services/auth';
 import { assignments, exerciseCompletions, exercises } from '../services/airtable';
 import { formatISO } from 'date-fns';
+import Button from '../components/ui/Button';
 
 export default function ClientDashboard() {
   const [user, setUser] = useState(null);
   const [assignList, setAssignList] = useState([]);
   const [completions, setCompletions] = useState([]);
   const [exerciseMap, setExerciseMap] = useState({});
+  const [selections, setSelections] = useState({});
+  const [initialSelections, setInitialSelections] = useState({});
+  const [compMap, setCompMap] = useState({});
 
   useEffect(() => {
     (async () => {
       const u = await auth.getCurrentUser();
       setUser(u);
+
+      // load assignments + existing completions
       const assigns = await assignments.listForClient(u.email);
-      setAssignList(assigns);
       const comps = await exerciseCompletions.listForClient(u.email);
+      setAssignList(assigns);
       setCompletions(comps);
+
+      // build selection state + compMap
+      const sel = {};
+      const initSel = {};
+      const cmap = {};
+      comps.forEach(c => {
+        const aid = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
+        sel[aid] = true;
+        initSel[aid] = true;
+        cmap[aid] = c.id;
+      });
+      assigns.forEach(a => {
+        if (!(a.id in sel)) sel[a.id] = false;
+        if (!(a.id in initSel)) initSel[a.id] = false;
+      });
+      setSelections(sel);
+      setInitialSelections(initSel);
+      setCompMap(cmap);
+
+      // exercise name lookup
       const exList = await exercises.list();
       const map = {};
-      exList.forEach(ex => { map[ex.id] = ex.Name; });
+      exList.forEach(ex => (map[ex.id] = ex.Name));
       setExerciseMap(map);
     })();
   }, []);
 
   const todayStr = formatISO(new Date(), { representation: 'date' });
 
-  const handleChange = async assign => {
-    // Fixed: Handle linked-record array format
-    const doneRecord = completions.find(
-      c => Array.isArray(c.Assignment) && c.Assignment.includes(assign.id) && c['Completion Date'] === todayStr
-    );
-    
-    if (doneRecord) {
-      await exerciseCompletions.delete(doneRecord.id);
-    } else {
-      // Fixed: Create completion with array format
-      await exerciseCompletions.create({
-        Assignment: [assign.id],
-        'Completion Date': todayStr
-      });
+  // toggle UI state only
+  const toggleSelection = aid => {
+    setSelections(s => ({ ...s, [aid]: !s[aid] }));
+  };
+
+  // send diffs to Airtable
+  const handleSend = async () => {
+    for (const aid of Object.keys(selections)) {
+      const was = initialSelections[aid];
+      const now = selections[aid];
+      if (now && !was) {
+        await exerciseCompletions.create({
+          Assignment: [aid],
+          'Completion Date': todayStr
+        });
+      } else if (!now && was) {
+        const cid = compMap[aid];
+        if (cid) await exerciseCompletions.delete(cid);
+      }
     }
-    
+    // refresh
     const updated = await exerciseCompletions.listForClient(user.email);
     setCompletions(updated);
+    setInitialSelections({ ...selections });
+    const newMap = {};
+    updated.forEach(c => {
+      const aid = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
+      newMap[aid] = c.id;
+    });
+    setCompMap(newMap);
+    alert('Saved!');
   };
 
   return (
@@ -52,11 +91,8 @@ export default function ClientDashboard() {
       <h2>Today's Exercises</h2>
       <ul>
         {assignList.map(a => {
-          // Fixed: Handle linked-record array format for checking completion
-          const done = completions.some(
-            c => Array.isArray(c.Assignment) && c.Assignment.includes(a.id) && c['Completion Date'] === todayStr
-          );
-          const exId = Array.isArray(a.Exercise) ? a.Exercise[0] : null;
+          const done = selections[a.id];
+          const exId = Array.isArray(a.Exercise) ? a.Exercise[0] : a.Exercise;
           const exName = exerciseMap[exId] || 'Exercise';
           return (
             <li key={a.id}>
@@ -64,7 +100,7 @@ export default function ClientDashboard() {
                 <input
                   type="checkbox"
                   checked={done}
-                  onChange={() => handleChange(a)}
+                  onChange={() => toggleSelection(a.id)}
                 />{' '}
                 {exName} — {a.Sets}×{a.Reps}
               </label>
@@ -72,7 +108,8 @@ export default function ClientDashboard() {
           );
         })}
       </ul>
-      <a href="/progress">View Progress</a>
+      <Button onClick={handleSend}>Send</Button>
+      <a href="/progress" style={{ marginLeft: 16 }}>View Progress</a>
     </div>
   );
 }
