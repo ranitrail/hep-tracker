@@ -118,6 +118,7 @@ export const exerciseCompletions = {
       fields: ['Assignment', 'Completion Date', 'Notes'],
       sort: [{ field: 'Completion Date', direction: 'desc' }],
     }).all();
+    console.log('[DEBUG] Raw completions records:', records.map(r => ({ id: r.id, ...r.fields })));
     console.log('[exerciseCompletions.listForClient] Completions found:', records.map(r => ({ id: r.id, ...r.fields })));
     return records.map(r => ({ id: r.id, ...r.fields }));
   },
