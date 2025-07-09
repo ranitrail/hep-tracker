@@ -24,7 +24,7 @@ export default function ClientProgress() {
         
         // Get all completions
         const comps = await exerciseCompletions.listForClient(user.email);
-        console.log('[ClientProgress] Completions:', comps);
+        console.log('[DEBUG] All completions fetched:', comps);
 
         if (comps.length === 0) {
           // No completions yet - show empty chart for current week
@@ -105,7 +105,7 @@ export default function ClientProgress() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [selectedDate]);
 
   const weekStart = startOfWeek(selectedDate);
   const weekEnd = endOfWeek(selectedDate);

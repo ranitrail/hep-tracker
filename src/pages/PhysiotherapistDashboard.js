@@ -43,6 +43,15 @@ export default function PhysiotherapistDashboard() {
             const comp = await exerciseCompletions.listForClient(client.Email);
             console.log(`[PhysioDashboard] Assignments for ${client.Email}:`, asg);
             console.log(`[PhysioDashboard] Completions for ${client.Email}:`, comp);
+            const weekStart = startOfWeek(selectedDate);
+            const weekEnd = endOfWeek(selectedDate);
+            console.log(`[DEBUG] Filtering for week:`, weekStart, weekEnd);
+            comp.forEach(c => {
+              const d = parseDate(c['Completion Date']);
+              const assignmentId = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
+              console.log('[DEBUG] Completion:', c, 'Parsed date:', d, 'In week:', d && d >= weekStart && d <= weekEnd, 'Assignment ID:', assignmentId);
+            });
+            console.log('[DEBUG] Client assignments:', asg.map(a => a.id));
             
             // Count completions for the selected week
             const done = comp.filter(c => {

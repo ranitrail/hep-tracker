@@ -38,6 +38,8 @@ export default function ClientDashboard() {
       console.log('[ClientDashboard] Exercises:', exList);
       setAssignList(assigns);
       setCompletions(comps);
+      console.log('[DEBUG] Assignments:', assigns);
+      console.log('[DEBUG] Completions:', comps);
 
       // Build exercise name lookup
       const map = {};
@@ -149,6 +151,13 @@ export default function ClientDashboard() {
     const d = parseDate(c['Completion Date']);
     return d && d >= weekStart && d <= weekEnd;
   });
+  console.log('[DEBUG] Filtering for week:', weekStart, weekEnd);
+  completions.forEach(c => {
+    const d = parseDate(c['Completion Date']);
+    const assignmentId = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
+    console.log('[DEBUG] Completion:', c, 'Parsed date:', d, 'In week:', d && d >= weekStart && d <= weekEnd, 'Assignment ID:', assignmentId);
+  });
+  console.log('[DEBUG] Client assignments:', assignList.map(a => a.id));
   // Build selection state based on this week's completions
   useEffect(() => {
     const sel = {};
