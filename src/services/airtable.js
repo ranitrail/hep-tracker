@@ -110,8 +110,8 @@ export const exerciseCompletions = {
 
     // OR({Assignment} = 'recA', {Assignment} = 'recB', …)
     const filterFormula = assigns.length === 1
-      ? `{Assignment} = '${assigns[0].id}'`
-      : `OR(${assigns.map(a => `{Assignment} = '${a.id}'`).join(',')})`;
+      ? `ARRAYJOIN({Assignment}, '') = '${assigns[0].id}'`
+      : `OR(${assigns.map(a => `ARRAYJOIN({Assignment}, '') = '${a.id}'`).join(',')})`;
 
     const records = await base('Completions').select({
       filterByFormula: filterFormula,
