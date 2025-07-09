@@ -66,13 +66,13 @@ export const clients = {
 export const assignments = {
   listForClient: async (clientEmail) => {
     console.log('[assignments.listForClient] Fetching assignments for:', clientEmail);
-    // Fast path – use lookup field “Client Email”
     try {
       const fast = await base('Assignments').select({
         filterByFormula: `LOWER({Client Email}) = LOWER('${clientEmail}')`,
         fields: ['Exercise', 'Sets', 'Reps', 'Client'],
         sort: [{ field: 'Assignment ID', direction: 'desc' }],
       }).all();
+      console.log('[assignments.listForClient] Fast path raw records:', fast.map(r => r.fields));
       if (fast.length) {
         console.log('[assignments.listForClient] Fast path assignments:', fast.map(r => ({ id: r.id, ...r.fields })));
         return fast.map(r => ({ id: r.id, ...r.fields }));
@@ -80,11 +80,9 @@ export const assignments = {
     } catch (e) {
       console.warn('Lookup field missing, falling back to Client ID', e);
     }
-
-    // Fallback – get client record then filter on {Client}
     const clientRec = await clients.findByEmail(clientEmail);
+    console.log('[assignments.listForClient] Fallback client record:', clientRec);
     if (!clientRec) return [];
-
     const records = await base('Assignments').select({
       filterByFormula: `{Client} = '${clientRec.id}'`,
       fields: ['Exercise', 'Sets', 'Reps', 'Client'],
