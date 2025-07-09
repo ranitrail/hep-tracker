@@ -8,12 +8,13 @@ import {
 } from 'recharts';
 import {
   startOfWeek, endOfWeek, eachWeekOfInterval,
-  format, parseISO, isValid
+  format, parseISO, isValid, addWeeks
 } from 'date-fns';
 
 export default function ClientProgress() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     (async () => {
@@ -60,7 +61,7 @@ export default function ClientProgress() {
 
         if (validDates.length === 0) {
           console.error('No valid dates found in completions');
-          setData([{ week: format(startOfWeek(new Date()), 'MM/dd'), completed: 0 }]);
+          setData([{ week: format(startOfWeek(selectedDate), 'MM/dd'), completed: 0 }]);
           setLoading(false);
           return;
         }
@@ -106,49 +107,59 @@ export default function ClientProgress() {
     })();
   }, []);
 
+  const weekStart = startOfWeek(selectedDate);
+  const weekEnd = endOfWeek(selectedDate);
+  const selectedWeekData = data.find(d => {
+    // Compare week string to selected week
+    return d.week === format(weekStart, 'MM/dd');
+  }) || { week: format(weekStart, 'MM/dd'), completed: 0 };
+
   if (loading) return <div>Loading progress data...</div>;
 
   return (
     <div>
       <h2>Weekly Progress</h2>
-      {data.length === 0 ? (
-        <p>No exercise completion data to display yet. Complete some exercises to see your progress!</p>
-      ) : (
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart
-            data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="week" />
-            <YAxis 
-              allowDecimals={false}
-              label={{ value: 'Exercises Completed', angle: -90, position: 'insideLeft' }}
-            />
-            <Tooltip 
-              content={({ active, payload }) => {
-                if (active && payload && payload[0]) {
-                  return (
-                    <div style={{ 
-                      backgroundColor: 'white', 
-                      padding: '10px', 
-                      border: '1px solid #ccc',
-                      borderRadius: '4px'
-                    }}>
-                      <p>{payload[0].payload.fullWeek}</p>
-                      <p style={{ color: '#007bff' }}>
-                        Completed: {payload[0].value}
-                      </p>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Bar dataKey="completed" fill="#007bff" name="Exercises Completed" />
-          </BarChart>
-        </ResponsiveContainer>
-      )}
+      <div style={{ marginBottom: 16 }}>
+        <button onClick={() => setSelectedDate(addWeeks(selectedDate, -1))}>Previous Week</button>
+        <span style={{ margin: '0 16px' }}>
+          {format(weekStart, 'MMM dd')} - {format(weekEnd, 'MMM dd, yyyy')}
+        </span>
+        <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>Next Week</button>
+      </div>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart
+          data={[selectedWeekData]}
+          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="week" />
+          <YAxis 
+            allowDecimals={false}
+            label={{ value: 'Exercises Completed', angle: -90, position: 'insideLeft' }}
+          />
+          <Tooltip 
+            content={({ active, payload }) => {
+              if (active && payload && payload[0]) {
+                return (
+                  <div style={{ 
+                    backgroundColor: 'white', 
+                    padding: '10px', 
+                    border: '1px solid #ccc',
+                    borderRadius: '4px'
+                  }}>
+                    <p>{payload[0].payload.fullWeek}</p>
+                    <p style={{ color: '#007bff' }}>
+                      Completed: {payload[0].value}
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar dataKey="completed" fill="#007bff" name="Exercises Completed" />
+        </BarChart>
+      </ResponsiveContainer>
       <div style={{ marginTop: '20px' }}>
         <a href="/my-exercises">← Back to Exercises</a>
       </div>

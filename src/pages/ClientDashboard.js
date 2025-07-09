@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from '../services/auth';
 import { assignments, exerciseCompletions, exercises } from '../services/airtable';
-import { format } from 'date-fns';
+import { startOfWeek, endOfWeek, format, addWeeks, parseISO, isValid } from 'date-fns';
 import Button from '../components/ui/Button';
 
 export default function ClientDashboard() {
@@ -13,6 +13,7 @@ export default function ClientDashboard() {
   const [selections, setSelections] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Store today's date in ISO format
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -133,9 +134,45 @@ export default function ClientDashboard() {
     ? Math.round((completedToday / totalExercises) * 100) 
     : 0;
 
+  const weekStart = startOfWeek(selectedDate);
+  const weekEnd = endOfWeek(selectedDate);
+  const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+    let date = parseISO(dateStr);
+    if (isValid(date)) return date;
+    date = new Date(dateStr);
+    if (isValid(date)) return date;
+    return null;
+  };
+  // Find completions for the selected week
+  const weekCompletions = completions.filter(c => {
+    const d = parseDate(c['Completion Date']);
+    return d && d >= weekStart && d <= weekEnd;
+  });
+  // Build selection state based on this week's completions
+  useEffect(() => {
+    const sel = {};
+    assignList.forEach(a => {
+      const completedThisWeek = weekCompletions.some(c => {
+        const assignmentId = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
+        return assignmentId === a.id;
+      });
+      sel[a.id] = completedThisWeek;
+    });
+    setSelections(sel);
+    // eslint-disable-next-line
+  }, [assignList, completions, selectedDate]);
+
   return (
     <div>
-      <h2>Today's Exercises - {format(new Date(), 'EEEE, MMMM d')}</h2>
+      <h2>Today's Exercises - {format(selectedDate, 'EEEE, MMMM d')}</h2>
+      <div style={{ marginBottom: 16 }}>
+        <button onClick={() => setSelectedDate(addWeeks(selectedDate, -1))}>Previous Week</button>
+        <span style={{ margin: '0 16px' }}>
+          {format(weekStart, 'MMM dd')} - {format(weekEnd, 'MMM dd, yyyy')}
+        </span>
+        <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>Next Week</button>
+      </div>
       
       {message && (
         <div style={{

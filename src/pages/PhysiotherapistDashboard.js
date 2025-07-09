@@ -1,19 +1,20 @@
 // src/pages/PhysiotherapistDashboard.js
 import React, { useState, useEffect } from 'react';
 import { clients, assignments, exerciseCompletions } from '../services/airtable';
-import { format, startOfWeek, endOfWeek, parseISO, isValid } from 'date-fns';
+import { startOfWeek, endOfWeek, format, parseISO, isValid, addWeeks } from 'date-fns';
 
 export default function PhysiotherapistDashboard() {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekRange, setWeekRange] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
         const cl = await clients.list();
-        const weekStart = startOfWeek(new Date());
-        const weekEnd = endOfWeek(new Date());
+        const weekStart = startOfWeek(selectedDate);
+        const weekEnd = endOfWeek(selectedDate);
         
         // Set the week range for display
         setWeekRange(`${format(weekStart, 'MMM dd')} - ${format(weekEnd, 'MMM dd, yyyy')}`);
@@ -43,7 +44,7 @@ export default function PhysiotherapistDashboard() {
             console.log(`[PhysioDashboard] Assignments for ${client.Email}:`, asg);
             console.log(`[PhysioDashboard] Completions for ${client.Email}:`, comp);
             
-            // Count completions for this week
+            // Count completions for the selected week
             const done = comp.filter(c => {
               const d = parseDate(c['Completion Date']);
               return d && d >= weekStart && d <= weekEnd;
@@ -93,13 +94,18 @@ export default function PhysiotherapistDashboard() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [selectedDate]);
 
   if (loading) return <div>Loading dashboard data...</div>;
 
   return (
     <div>
       <h2>Client Summary</h2>
+      <div style={{ marginBottom: 16 }}>
+        <button onClick={() => setSelectedDate(addWeeks(selectedDate, -1))}>Previous Week</button>
+        <span style={{ margin: '0 16px' }}>{weekRange}</span>
+        <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>Next Week</button>
+      </div>
       <p style={{ color: '#666', marginBottom: '20px' }}>Week of {weekRange}</p>
       
       {stats.length === 0 ? (
