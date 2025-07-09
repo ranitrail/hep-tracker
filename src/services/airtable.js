@@ -65,6 +65,7 @@ export const clients = {
 ------------------------------------------------------------- */
 export const assignments = {
   listForClient: async (clientEmail) => {
+    console.log('[assignments.listForClient] Fetching assignments for:', clientEmail);
     // Fast path – use lookup field “Client Email”
     try {
       const fast = await base('Assignments').select({
@@ -72,7 +73,10 @@ export const assignments = {
         fields: ['Exercise', 'Sets', 'Reps', 'Client'],
         sort: [{ field: 'Assignment ID', direction: 'desc' }],
       }).all();
-      if (fast.length) return fast.map(r => ({ id: r.id, ...r.fields }));
+      if (fast.length) {
+        console.log('[assignments.listForClient] Fast path assignments:', fast.map(r => ({ id: r.id, ...r.fields })));
+        return fast.map(r => ({ id: r.id, ...r.fields }));
+      }
     } catch (e) {
       console.warn('Lookup field missing, falling back to Client ID', e);
     }
@@ -86,6 +90,7 @@ export const assignments = {
       fields: ['Exercise', 'Sets', 'Reps', 'Client'],
       sort: [{ field: 'Assignment ID', direction: 'desc' }],
     }).all();
+    console.log('[assignments.listForClient] Fallback assignments:', records.map(r => ({ id: r.id, ...r.fields })));
     return records.map(r => ({ id: r.id, ...r.fields }));
   },
   create: async (fields) => {
@@ -100,7 +105,9 @@ export const assignments = {
 ------------------------------------------------------------- */
 export const exerciseCompletions = {
   listForClient: async (clientEmail) => {
+    console.log('[exerciseCompletions.listForClient] Fetching completions for:', clientEmail);
     const assigns = await assignments.listForClient(clientEmail);
+    console.log('[exerciseCompletions.listForClient] Assignments found:', assigns);
     if (!assigns.length) return [];
 
     // OR({Assignment} = 'recA', {Assignment} = 'recB', …)
@@ -113,6 +120,7 @@ export const exerciseCompletions = {
       fields: ['Assignment', 'Completion Date', 'Notes'],
       sort: [{ field: 'Completion Date', direction: 'desc' }],
     }).all();
+    console.log('[exerciseCompletions.listForClient] Completions found:', records.map(r => ({ id: r.id, ...r.fields })));
     return records.map(r => ({ id: r.id, ...r.fields }));
   },
 

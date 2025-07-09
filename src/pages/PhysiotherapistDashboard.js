@@ -35,11 +35,13 @@ export default function PhysiotherapistDashboard() {
 
         const all = await Promise.all(cl.map(async client => {
           try {
+            console.log('[PhysioDashboard] Fetching for client:', client.Email);
             // Get assignments for this client
             const asg = await assignments.listForClient(client.Email);
-            
             // Get completions for this client
             const comp = await exerciseCompletions.listForClient(client.Email);
+            console.log(`[PhysioDashboard] Assignments for ${client.Email}:`, asg);
+            console.log(`[PhysioDashboard] Completions for ${client.Email}:`, comp);
             
             // Count completions for this week
             const done = comp.filter(c => {

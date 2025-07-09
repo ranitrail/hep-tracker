@@ -25,14 +25,16 @@ export default function ClientDashboard() {
     try {
       const u = await auth.getCurrentUser();
       setUser(u);
-
+      console.log('[ClientDashboard] Current user:', u);
       // Load all data in parallel
       const [assigns, comps, exList] = await Promise.all([
         assignments.listForClient(u.email),
         exerciseCompletions.listForClient(u.email),
         exercises.list()
       ]);
-
+      console.log('[ClientDashboard] Assignments:', assigns);
+      console.log('[ClientDashboard] Completions:', comps);
+      console.log('[ClientDashboard] Exercises:', exList);
       setAssignList(assigns);
       setCompletions(comps);
 

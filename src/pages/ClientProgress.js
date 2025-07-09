@@ -19,10 +19,11 @@ export default function ClientProgress() {
     (async () => {
       try {
         const user = await auth.getCurrentUser();
+        console.log('[ClientProgress] Current user:', user);
         
         // Get all completions
         const comps = await exerciseCompletions.listForClient(user.email);
-        console.log('Completions:', comps);
+        console.log('[ClientProgress] Completions:', comps);
 
         if (comps.length === 0) {
           // No completions yet - show empty chart for current week
