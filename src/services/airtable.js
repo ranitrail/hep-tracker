@@ -108,10 +108,10 @@ export const exerciseCompletions = {
     console.log('[exerciseCompletions.listForClient] Assignments found:', assigns);
     if (!assigns.length) return [];
 
-    // OR({Assignment} = 'recA', {Assignment} = 'recB', …)
+    // Use rollup field {Assignment Record ID} to match assignment record IDs
     const filterFormula = assigns.length === 1
-      ? `ARRAYJOIN({Assignment}, '') = '${assigns[0].id}'`
-      : `OR(${assigns.map(a => `ARRAYJOIN({Assignment}, '') = '${a.id}'`).join(',')})`;
+      ? `{Assignment Record ID} = '${assigns[0].id}'`
+      : `OR(${assigns.map(a => `{Assignment Record ID} = '${a.id}'`).join(',')})`;
 
     const records = await base('Completions').select({
       filterByFormula: filterFormula,
