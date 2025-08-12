@@ -1,19 +1,10 @@
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 export default function HelpModal({ open, onClose }) {
   const firstRef = useRef(null);
   const lastRef = useRef(null);
   const closeRef = useRef(null);
-
-  // Build a /logout link that matches the current deployment
-  const logoutHref = useMemo(() => {
-    try {
-      return `${window.location.origin}/logout`;
-    } catch {
-      return "https://your-app-domain/logout";
-    }
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -121,7 +112,6 @@ export default function HelpModal({ open, onClose }) {
           <section>
             <h3>4) Logging Out</h3>
             <p>Tap <strong>Log Out</strong> at the top right at any time.</p>
-            <p>If you don’t see it, you can also visit: <a href={logoutHref}>{logoutHref}</a> (this signs you out and takes you to the login screen).</p>
           </section>
 
           <section>
