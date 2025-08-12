@@ -47,6 +47,26 @@
   }
 }
 
+.sidebar{ display:none !important; }
+
+.bottom-nav{
+  position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+  display:flex; gap: var(--sp-2);
+  background: var(--card); border-top: 1px solid #e5e7eb;
+  padding: 6px var(--sp-4); z-index: 30;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom));
+}
+.bottom-nav a{
+  flex:1; display:flex; align-items:center; justify-content:center;
+  height: 44px; border-radius: 10px; text-decoration:none; font-weight:600;
+  color: var(--text);
+}
+.bottom-nav a.active{ background: rgba(79,70,229,.10); color: var(--primary); }
+
+/* ensure content and sticky footer aren't hidden behind nav */
+.page{ padding-bottom: 64px; }
+.sticky-action{ bottom: 56px; }
+
 /* Respect prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .exercise-card {

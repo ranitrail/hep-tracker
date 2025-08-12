@@ -1,8 +1,8 @@
 // src/pages/ClientDashboard.js
 import React, { useState, useEffect, useMemo } from 'react';
+import { format } from 'date-fns';
 import { auth } from '../services/auth';
 import { assignments, exerciseCompletions, exercises } from '../services/airtable';
-import { startOfWeek, endOfWeek, format, addWeeks, parseISO, isValid } from 'date-fns';
 import Button from '../components/ui/Button';
 
 export default function ClientDashboard() {
@@ -13,190 +13,156 @@ export default function ClientDashboard() {
   const [selections, setSelections] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [showCelebration, setShowCelebration] = useState(false);
 
-  // Store today's date in ISO format
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const today = new Date();
+  const todayStr = format(today, 'yyyy-MM-dd');
 
-  // Show toast function
-  const displayToast = (message, type = 'success') => {
-    setToastMessage(message);
+  // ---- Utilities ----
+  const vibrate = (ms = 15) => {
+    // Subtle haptics on supported devices; respects reduced motion
+    try {
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+      if ('vibrate' in navigator) navigator.vibrate(ms);
+    } catch (_) {}
+  };
+
+  const displayToast = (msg, type = 'success') => {
+    setToastMessage(msg);
     setToastType(type);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 1500);
   };
 
-  // Calculate completion stats with useMemo to prevent recalculation
+  // Progress numbers
   const { totalExercises, completedToday, completionPercentage } = useMemo(() => {
     const total = assignList.length;
-    const completed = Object.values(selections).filter(v => v).length;
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-    return { totalExercises: total, completedToday: completed, completionPercentage: percentage };
+    const completed = Object.values(selections).filter(Boolean).length;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { totalExercises: total, completedToday: completed, completionPercentage: pct };
   }, [assignList.length, selections]);
 
-  // Calculate week dates and completions with useMemo
-  const { weekStart, weekEnd, weekCompletions } = useMemo(() => {
-    const start = startOfWeek(selectedDate);
-    const end = endOfWeek(selectedDate);
-    
-    const parseDate = (dateStr) => {
-      if (!dateStr) return null;
-      let date = parseISO(dateStr);
-      if (isValid(date)) return date;
-      date = new Date(dateStr);
-      if (isValid(date)) return date;
-      return null;
-    };
-    
-    const weekComps = completions.filter(c => {
-      const d = parseDate(c['Completion Date']);
-      return d && d >= start && d <= end;
-    });
-    
-    return { weekStart: start, weekEnd: end, weekCompletions: weekComps };
-  }, [selectedDate, completions]);
-
-  // Check if celebration was already shown today
+  // Show “Great job!” once per day
   useEffect(() => {
-    const celebrationKey = `celebration-${todayStr}`;
-    const hasShownToday = localStorage.getItem(celebrationKey);
-    if (!hasShownToday && completedToday === totalExercises && totalExercises > 0) {
+    const key = `celebration-${todayStr}`;
+    const already = localStorage.getItem(key);
+    if (!already && completedToday === totalExercises && totalExercises > 0) {
       setShowCelebration(true);
-      localStorage.setItem(celebrationKey, 'true');
-      // Auto-hide celebration after 3 seconds
+      localStorage.setItem(key, 'true');
       setTimeout(() => setShowCelebration(false), 3000);
     }
   }, [completedToday, totalExercises, todayStr]);
 
-  // Build selection state based on this week's completions
-  useEffect(() => {
-    if (assignList.length > 0) {
-      const sel = {};
-      assignList.forEach(a => {
-        const completedThisWeek = weekCompletions.some(c => {
-          const assignmentId = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
-          return assignmentId === a.id;
-        });
-        sel[a.id] = completedThisWeek;
-      });
-      setSelections(sel);
-    }
-  }, [assignList, weekCompletions]);
-
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const u = await auth.getCurrentUser();
       setUser(u);
-      console.log('[ClientDashboard] Current user:', u);
-      // Load all data in parallel
+
       const [assigns, comps, exList] = await Promise.all([
         assignments.listForClient(u.email),
         exerciseCompletions.listForClient(u.email),
         exercises.list()
       ]);
-      console.log('[ClientDashboard] Assignments:', assigns);
-      console.log('[ClientDashboard] Completions:', comps);
-      console.log('[ClientDashboard] Exercises:', exList);
+
       setAssignList(assigns);
       setCompletions(comps);
-      console.log('[DEBUG] Assignments:', assigns);
-      console.log('[DEBUG] Completions:', comps);
 
-      // Build exercise name lookup
+      // Exercise name lookup
       const map = {};
       exList.forEach(ex => (map[ex.id] = ex.Name));
       setExerciseMap(map);
 
-      // Find today's completions
-      const todayCompletions = comps.filter(c => {
+      // Build selection state from **today’s** completions
+      const todays = comps.filter(c => {
         const compDate = c['Completion Date'];
-        // Handle both ISO format and potential date object
-        const dateStr = typeof compDate === 'string' 
-          ? compDate.split('T')[0] 
+        const dateStr = typeof compDate === 'string'
+          ? compDate.split('T')[0]
           : format(new Date(compDate), 'yyyy-MM-dd');
         return dateStr === todayStr;
       });
 
-      // Build selection state based on today's completions
       const sel = {};
       assigns.forEach(a => {
-        // Check if this assignment was completed today
-        const completedToday = todayCompletions.some(c => {
-          const assignmentId = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
-          return assignmentId === a.id;
+        const doneToday = todays.some(c => {
+          const aid = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
+          return aid === a.id;
         });
-        sel[a.id] = completedToday;
+        sel[a.id] = doneToday;
       });
       setSelections(sel);
-    } catch (error) {
-      console.error('Error loading data:', error);
+    } catch (err) {
+      console.error('Error loading data:', err);
       setMessage('Error loading data. Please refresh the page.');
     }
   };
 
   const toggleSelection = (aid) => {
+    vibrate(12);
     setSelections(s => ({ ...s, [aid]: !s[aid] }));
+  };
+
+  const markAllComplete = () => {
+    if (!assignList.length) return;
+    if (!window.confirm('Mark all exercises complete for today?')) return;
+    const next = {};
+    assignList.forEach(a => (next[a.id] = true));
+    setSelections(next);
+    vibrate(18);
+  };
+
+  const clearAll = () => {
+    if (!assignList.length) return;
+    const next = Object.fromEntries(assignList.map(a => [a.id, false]));
+    setSelections(next);
   };
 
   const handleSave = async () => {
     setLoading(true);
     setMessage('');
-    
+
     try {
-      // Get today's completions to manage updates
-      const todayCompletions = completions.filter(c => {
+      // Completions that are already saved for today
+      const todays = completions.filter(c => {
         const compDate = c['Completion Date'];
-        const dateStr = typeof compDate === 'string' 
-          ? compDate.split('T')[0] 
+        const dateStr = typeof compDate === 'string'
+          ? compDate.split('T')[0]
           : format(new Date(compDate), 'yyyy-MM-dd');
         return dateStr === todayStr;
       });
 
-      // Create a map of assignment ID to completion record ID for today
       const todayCompMap = {};
-      todayCompletions.forEach(c => {
+      todays.forEach(c => {
         const aid = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
         todayCompMap[aid] = c.id;
       });
 
-      // Process each assignment
+      // Create/delete for each assignment
       for (const aid of Object.keys(selections)) {
         const isSelected = selections[aid];
-        const hasCompletionToday = aid in todayCompMap;
+        const hasToday = aid in todayCompMap;
 
-        if (isSelected && !hasCompletionToday) {
-          // Create new completion
-          await exerciseCompletions.create({
-            Assignment: [aid],
-            'Completion Date': todayStr
-          });
-        } else if (!isSelected && hasCompletionToday) {
-          // Delete existing completion
+        if (isSelected && !hasToday) {
+          await exerciseCompletions.create({ Assignment: [aid], 'Completion Date': todayStr });
+        } else if (!isSelected && hasToday) {
           await exerciseCompletions.delete(todayCompMap[aid]);
         }
       }
 
-      // Reload data to ensure UI is in sync
       await loadData();
-      
-      // Show success toast
       displayToast('Progress saved successfully!', 'success');
-      
-      // Dispatch custom event to notify other components (like progress chart) to update
+      vibrate(18);
+
+      // notify progress screen to update streak
       window.dispatchEvent(new CustomEvent('completion-updated'));
-      
-      // Keep button disabled for 1 second after save
+
       setTimeout(() => setLoading(false), 1000);
-    } catch (error) {
-      console.error('Error saving:', error);
+    } catch (err) {
+      console.error('Error saving:', err);
       displayToast('Error saving progress. Please try again.', 'error');
       setLoading(false);
     }
@@ -204,58 +170,59 @@ export default function ClientDashboard() {
 
   return (
     <div>
-      <h2>Today's Exercises - {format(selectedDate, 'EEEE, MMMM d')}</h2>
-      <div style={{ marginBottom: 16 }}>
-        <button onClick={() => setSelectedDate(addWeeks(selectedDate, -1))}>Previous Week</button>
-        <span style={{ margin: '0 16px' }}>
-          {format(weekStart, 'MMM dd')} - {format(weekEnd, 'MMM dd, yyyy')}
-        </span>
-        <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>Next Week</button>
-      </div>
-      
+      <h2>Today’s Exercises — {format(today, 'EEEE, MMM d')}</h2>
+
+      {/* message box (errors, etc.) */}
       {message && (
-        <div style={{
-          padding: '10px',
-          marginBottom: '20px',
-          borderRadius: '4px',
-          backgroundColor: message.includes('Error') ? '#f8d7da' : '#d4edda',
-          color: message.includes('Error') ? '#721c24' : '#155724',
-          border: `1px solid ${message.includes('Error') ? '#f5c6cb' : '#c3e6cb'}`
-        }}>
+        <div
+          style={{
+            padding: '10px',
+            marginBottom: '20px',
+            borderRadius: '4px',
+            backgroundColor: message.includes('Error') ? '#f8d7da' : '#d4edda',
+            color: message.includes('Error') ? '#721c24' : '#155724',
+            border: `1px solid ${message.includes('Error') ? '#f5c6cb' : '#c3e6cb'}`
+          }}
+        >
           {message}
         </div>
       )}
 
-      <div style={{
-        padding: '20px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3 style={{ margin: '0 0 10px 0' }}>Today's Progress</h3>
+      {/* Today summary */}
+      <div
+        style={{
+          padding: '20px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px',
+          marginBottom: '12px'
+        }}
+      >
+        <h3 style={{ margin: '0 0 10px 0' }}>Today’s Progress</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div>
             <span style={{ fontSize: '36px', fontWeight: 'bold', color: '#007bff' }}>
               {completedToday}
             </span>
-            <span style={{ fontSize: '24px', color: '#6c757d' }}>
-              {' '}/ {totalExercises}
-            </span>
+            <span style={{ fontSize: '24px', color: '#6c757d' }}> / {totalExercises}</span>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{
-              width: '100%',
-              height: '30px',
-              backgroundColor: '#e9ecef',
-              borderRadius: '15px',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                width: `${completionPercentage}%`,
-                height: '100%',
-                backgroundColor: completionPercentage === 100 ? '#28a745' : '#007bff',
-                transition: 'width 0.3s ease'
-              }} />
+            <div
+              style={{
+                width: '100%',
+                height: '30px',
+                backgroundColor: '#e9ecef',
+                borderRadius: '15px',
+                overflow: 'hidden'
+              }}
+            >
+              <div
+                style={{
+                  width: `${completionPercentage}%`,
+                  height: '100%',
+                  backgroundColor: completionPercentage === 100 ? '#28a745' : '#007bff',
+                  transition: 'width 0.3s ease'
+                }}
+              />
             </div>
             <p style={{ margin: '5px 0 0 0', color: '#6c757d' }}>
               {completionPercentage}% Complete
@@ -264,6 +231,15 @@ export default function ClientDashboard() {
         </div>
       </div>
 
+      {/* Quick actions */}
+      {assignList.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, margin: '8px 0 12px' }}>
+          <button onClick={markAllComplete}>Mark all complete</button>
+          <button onClick={clearAll}>Clear all</button>
+        </div>
+      )}
+
+      {/* Exercise cards */}
       {assignList.length === 0 ? (
         <p>No exercises assigned yet. Please contact your physiotherapist.</p>
       ) : (
@@ -273,7 +249,7 @@ export default function ClientDashboard() {
               const done = selections[a.id] || false;
               const exId = Array.isArray(a.Exercise) ? a.Exercise[0] : a.Exercise;
               const exName = exerciseMap[exId] || 'Exercise';
-              
+
               return (
                 <div
                   key={a.id}
@@ -282,19 +258,17 @@ export default function ClientDashboard() {
                     width: '100%',
                     padding: 'var(--sp-4)',
                     marginBottom: 'var(--sp-2)',
-                    backgroundColor: done 
-                      ? 'rgba(16, 185, 129, 0.08)' 
-                      : 'var(--card)',
+                    backgroundColor: done ? 'rgba(16, 185, 129, 0.08)' : 'var(--card)',
                     border: `2px solid ${done ? 'var(--success)' : '#dee2e6'}`,
                     borderRadius: 'var(--radius)',
                     cursor: 'pointer',
-                    transition: 'background-color 0.2s, box-shadow 0.2s',
+                    transition: 'background-color 0.2s, box-shadow 0.2s, transform .06s',
                     boxShadow: 'var(--shadow)',
                     position: 'relative',
                     overflow: 'hidden'
                   }}
                   onClick={() => toggleSelection(a.id)}
-                  onKeyDown={(e) => {
+                  onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       toggleSelection(a.id);
@@ -305,46 +279,44 @@ export default function ClientDashboard() {
                   aria-pressed={done}
                   aria-label={`${exName} - ${a.Sets} sets × ${a.Reps} reps`}
                 >
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    minHeight: '44px'
-                  }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      minHeight: '44px'
+                    }}
+                  >
                     <div style={{ flex: 1 }}>
-                      <h3 style={{ 
-                        margin: '0 0 var(--sp-1) 0', 
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        color: 'var(--text)'
-                      }}>
+                      <h3
+                        style={{
+                          margin: '0 0 var(--sp-1) 0',
+                          fontSize: '18px',
+                          fontWeight: '600',
+                          color: 'var(--text)'
+                        }}
+                      >
                         {exName}
                       </h3>
-                      <p style={{ 
-                        margin: 0, 
-                        color: 'var(--muted)', 
-                        fontSize: '14px'
-                      }}>
+                      <p style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>
                         {a.Sets} × {a.Reps}
                       </p>
                     </div>
-                    <div style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      backgroundColor: done ? 'var(--success)' : 'transparent',
-                      border: `2px solid ${done ? 'var(--success)' : '#dee2e6'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0
-                    }}>
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        backgroundColor: done ? 'var(--success)' : 'transparent',
+                        border: `2px solid ${done ? 'var(--success)' : '#dee2e6'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
+                    >
                       {done && (
-                        <span style={{ 
-                          color: 'white', 
-                          fontSize: '14px',
-                          fontWeight: 'bold'
-                        }}>
+                        <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>
                           ✓
                         </span>
                       )}
@@ -355,26 +327,15 @@ export default function ClientDashboard() {
             })}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <Button 
-              onClick={handleSave} 
-              disabled={loading}
-              style={{
-                opacity: loading ? 0.6 : 1,
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Saving...' : 'Save Progress'}
-            </Button>
-            <a href="/progress" style={{ marginLeft: '16px' }}>
-              View Weekly Progress →
-            </a>
+          {/* Link to weekly view ONLY (no second Save button here) */}
+          <div style={{ marginBottom: '12px' }}>
+            <a href="/progress">View Weekly Progress →</a>
           </div>
         </>
       )}
 
-      {/* Sticky Footer Bar */}
-      <div 
+      {/* Sticky Save bar (single primary action) */}
+      <div
         className="sticky-action"
         style={{
           position: 'sticky',
@@ -392,8 +353,8 @@ export default function ClientDashboard() {
         <div style={{ color: 'var(--muted)', fontSize: '14px' }}>
           {completedToday}/{totalExercises} done
         </div>
-        <Button 
-          onClick={handleSave} 
+        <Button
+          onClick={handleSave}
           disabled={loading}
           style={{
             opacity: loading ? 0.6 : 1,
@@ -406,9 +367,9 @@ export default function ClientDashboard() {
         </Button>
       </div>
 
-      {/* Toast Notification */}
+      {/* Top toast */}
       {showToast && (
-        <div 
+        <div
           className="toast"
           style={{
             position: 'fixed',
@@ -433,9 +394,9 @@ export default function ClientDashboard() {
         </div>
       )}
 
-      {/* Celebration Message */}
+      {/* Celebration */}
       {showCelebration && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: 'calc(60px + env(safe-area-inset-top))',
@@ -458,6 +419,14 @@ export default function ClientDashboard() {
           Great job! 🎉 All exercises complete.
         </div>
       )}
+
+      {/* Local CSS for card animation + reduced motion */}
+      <style>{`
+        .exercise-card:active { transform: scale(.98); }
+        @media (prefers-reduced-motion: reduce) {
+          .exercise-card { transition: none !important; transform: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
