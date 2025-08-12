@@ -85,7 +85,7 @@ export default function Layout({ user, children }) {
             marginBottom: 16, gap: 12
           }}>
             <img
-              src="/brand-logo.png"
+              src="/bridges-and-balance-logo-wide.png"
               alt="Bridges & Balance"
               className="brand-logo"
               style={{ height: 40, width: 'auto', objectFit: 'contain' }}
