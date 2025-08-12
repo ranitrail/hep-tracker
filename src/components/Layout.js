@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import Card from './ui/Card';
+import HelpModal from './HelpModal';
 
 function BottomNav({ user }) {
   const location = useLocation();
@@ -26,9 +27,19 @@ function BottomNav({ user }) {
   );
 }
 
+function QuestionIcon(props){
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M12 17a1 1 0 100 2 1 1 0 000-2zm.02-12a5.01 5.01 0 00-5.02 5 .75.75 0 001.5 0 3.5 3.5 0 116.58 1.5c-.33.5-.82.86-1.36 1.2-.65.42-1.33.85-1.68 1.66-.18.42-.03.91.39 1.1.42.18.91.03 1.1-.39.16-.37.62-.65 1.16-1.0.69-.45 1.54-1.01 2.02-1.98A5 5 0 0012.02 5z" fill="currentColor"/>
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" opacity=".25"/>
+    </svg>
+  );
+}
+
 export default function Layout({ user, children }) {
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const isClient = user?.user_type === 'client';
 
   useEffect(() => {
@@ -46,8 +57,7 @@ export default function Layout({ user, children }) {
     ? [{ to: '/my-exercises', label: 'My Exercises' }, { to: '/progress', label: 'Progress' }]
     : [{ to: '/dashboard', label: 'Dashboard' }, { to: '/clients', label: 'Clients' }, { to: '/exercises', label: 'Library' }];
 
-  const showSidebar = !isMobile; // keep the sidebar on desktop
-  const showClientTopbar = isClient; // <— show for client on BOTH mobile & desktop
+  const showSidebar = !isMobile;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -62,10 +72,14 @@ export default function Layout({ user, children }) {
               })}>{l.label}</NavLink>
             ))}
           </nav>
-          {/* Avoid duplicate logout for clients — it’s in the top bar now */}
-          {!isClient && (
-            <button className="btn" onClick={handleLogout}>Log Out</button>
-          )}
+
+          {/* Help + Logout in sidebar (therapist sees both here) */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button className="btn" onClick={() => setHelpOpen(true)} aria-label="Open help">
+              <QuestionIcon style={{ marginRight: 6 }} /> Help
+            </button>
+            {!isClient && <button className="btn" onClick={handleLogout}>Log Out</button>}
+          </div>
         </aside>
       )}
 
@@ -74,39 +88,38 @@ export default function Layout({ user, children }) {
         style={{
           flex: 1,
           padding: 20,
-          paddingBottom: isClient && isMobile ? 80 : 20, // space for bottom nav on mobile
+          paddingBottom: isClient && isMobile ? 80 : 20,
           background: '#fff'
         }}
       >
-        {/* Client top bar with bigger logo + Log Out on ALL screen sizes */}
-        {showClientTopbar && (
-          <div className="brandbar" style={{
-            display:'flex', alignItems:'center', justifyContent:'space-between',
-            marginBottom: 16, gap: 12
-          }}>
-            <img
-              src="/bridges-and-balance-logo-wide.png"
-              alt="Bridges & Balance"
-              className="brand-logo"
-              style={{ height: 40, width: 'auto', objectFit: 'contain' }}
-            />
+        {/* Top brand bar for ALL users on mobile, and for clients on desktop */}
+        <div className="brandbar" style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+          marginBottom: 16, gap: 12
+        }}>
+          <img src="/brand-logo.png" alt="Bridges & Balance" className="brand-logo" style={{ height: 40, width: 'auto' }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" onClick={() => setHelpOpen(true)} aria-label="Help">
+              <QuestionIcon style={{ marginRight: 6 }} /> Help
+            </button>
             <button className="btn" onClick={handleLogout} aria-label="Log out">Log Out</button>
           </div>
-        )}
+        </div>
 
         <Card>{children}</Card>
       </main>
 
       <BottomNav user={user} />
 
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+
       <style>{`
-        /* make logo bigger on desktop */
         @media (min-width: 768px){
           .brand-logo{ height: 56px !important; }
         }
-        @media (max-width: 768px){
+        @media (max-width:768px){
           .sidebar{ display:none !important; }
-          .page{ padding-bottom: 80px; } /* room for bottom nav */
+          .page{ padding-bottom: 80px; } /* bottom nav room */
         }
       `}</style>
     </div>
