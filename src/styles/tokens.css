@@ -3,4 +3,23 @@
   --text:#111827; --muted:#6B7280; --bg:#F8FAFC; --card:#FFFFFF;
   --radius:12px; --shadow:0 6px 18px rgba(0,0,0,.06);
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  --h1: 22px; --h2: 20px; --h3: 18px; --text: 16px; /* simple scale */
+}
+
+/* App-wide font + headings */
+html, body { font-family: var(--font-sans); font-size: var(--text); color: var(--text); }
+h1{ font-size: var(--h1); font-weight: 700; }
+h2{ font-size: var(--h1); font-weight: 700; } /* same look for key page titles */
+h3{ font-size: var(--h3); font-weight: 600; }
+
+/* Pretty buttons that match the bottom tab on hover */
+.btn{
+  appearance:none; border: 1px solid #e5e7eb; background: #fff; color: var(--text);
+  padding: 8px 14px; border-radius: 10px; font-weight:600; box-shadow: var(--shadow);
+  transition: transform .06s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease;
+}
+.btn:hover{
+  background: rgba(79,70,229,.10); /* matches active tab background */
+  color: var(--primary);            /* purple text to match tab */
 }
