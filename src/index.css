@@ -18,6 +18,35 @@
   transform: scale(0.98);
 }
 
+/* Sticky footer bar */
+.sticky-action {
+  position: sticky;
+  bottom: 0;
+  background: var(--card);
+  border-top: 1px solid #e5e7eb;
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 20;
+}
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+}
+
+/* Mobile considerations */
+@media (max-width: 768px) {
+  .sticky-action {
+    bottom: 60px; /* Stay above bottom nav */
+  }
+}
+
 /* Respect prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .exercise-card {
@@ -26,6 +55,10 @@
   
   .exercise-card:active {
     transform: none;
+  }
+  
+  .toast {
+    transition: none;
   }
 }
 

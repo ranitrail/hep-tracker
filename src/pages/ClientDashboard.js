@@ -14,9 +14,33 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Store today's date in ISO format
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  // Check if celebration was already shown today
+  useEffect(() => {
+    const celebrationKey = `celebration-${todayStr}`;
+    const hasShownToday = localStorage.getItem(celebrationKey);
+    if (!hasShownToday && completedToday === totalExercises && totalExercises > 0) {
+      setShowCelebration(true);
+      localStorage.setItem(celebrationKey, 'true');
+      // Auto-hide celebration after 3 seconds
+      setTimeout(() => setShowCelebration(false), 3000);
+    }
+  }, [completedToday, totalExercises, todayStr]);
+
+  // Show toast function
+  const displayToast = (message, type = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 1500);
+  };
 
   useEffect(() => {
     loadData();
@@ -117,14 +141,15 @@ export default function ClientDashboard() {
 
       // Reload data to ensure UI is in sync
       await loadData();
-      setMessage('Progress saved successfully!');
       
-      // Clear message after 3 seconds
-      setTimeout(() => setMessage(''), 3000);
+      // Show success toast
+      displayToast('Progress saved successfully!', 'success');
+      
+      // Keep button disabled for 1 second after save
+      setTimeout(() => setLoading(false), 1000);
     } catch (error) {
       console.error('Error saving:', error);
-      setMessage('Error saving progress. Please try again.');
-    } finally {
+      displayToast('Error saving progress. Please try again.', 'error');
       setLoading(false);
     }
   };
@@ -341,6 +366,92 @@ export default function ClientDashboard() {
             </a>
           </div>
         </>
+      )}
+
+      {/* Sticky Footer Bar */}
+      <div 
+        className="sticky-action"
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          background: 'var(--card)',
+          borderTop: '1px solid #e5e7eb',
+          padding: 'var(--sp-3) var(--sp-4)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          zIndex: 20,
+          marginTop: 'var(--sp-6)'
+        }}
+      >
+        <div style={{ color: 'var(--muted)', fontSize: '14px' }}>
+          {completedToday}/{totalExercises} done
+        </div>
+        <Button 
+          onClick={handleSave} 
+          disabled={loading}
+          style={{
+            opacity: loading ? 0.6 : 1,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            minHeight: '44px',
+            padding: 'var(--sp-2) var(--sp-4)'
+          }}
+        >
+          {loading ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div 
+          className="toast"
+          style={{
+            position: 'fixed',
+            top: 'calc(8px + env(safe-area-inset-top))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            background: toastType === 'success' ? 'var(--success)' : 'var(--danger)',
+            color: 'white',
+            padding: 'var(--sp-3) var(--sp-4)',
+            borderRadius: 'var(--radius)',
+            boxShadow: 'var(--shadow)',
+            fontSize: '14px',
+            fontWeight: '500',
+            maxWidth: '90vw',
+            textAlign: 'center'
+          }}
+          aria-live="polite"
+          role="status"
+        >
+          {toastMessage}
+        </div>
+      )}
+
+      {/* Celebration Message */}
+      {showCelebration && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 'calc(60px + env(safe-area-inset-top))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9998,
+            background: 'var(--success)',
+            color: 'white',
+            padding: 'var(--sp-3) var(--sp-4)',
+            borderRadius: 'var(--radius)',
+            boxShadow: 'var(--shadow)',
+            fontSize: '16px',
+            fontWeight: '600',
+            textAlign: 'center',
+            maxWidth: '90vw'
+          }}
+          aria-live="polite"
+          role="status"
+        >
+          Great job! 🎉 All exercises complete.
+        </div>
       )}
     </div>
   );
