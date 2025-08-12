@@ -44,7 +44,7 @@ function BottomNav({ user }) {
   return (
     <nav aria-label="Primary" className="bottom-nav" style={navStyle}>
       <NavLink to="/my-exercises" end style={({ isActive }) => linkStyle(isActive)}>
-        Home
+        Exercises
       </NavLink>
       <NavLink to="/progress" style={({ isActive }) => linkStyle(isActive)}>
         Progress

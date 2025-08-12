@@ -18,23 +18,24 @@ export default function ClientProgress() {
   const [streak, setStreak] = useState(0);
   const [assignedCount, setAssignedCount] = useState(0); // for goal line
 
+  // ---------- helpers ----------
+  const parseDateSafe = (dateStr) => {
+    if (!dateStr) return null;
+    let d = parseISO(dateStr);
+    if (isValid(d)) return d;
+    d = new Date(dateStr);
+    if (isValid(d)) return d;
+    return null;
+  };
+
   const calculateStreak = (comps) => {
     if (!comps || comps.length === 0) return 0;
     try {
       const today = new Date();
       const todayStr = format(today, 'yyyy-MM-dd');
 
-      const parseDate = (dateStr) => {
-        if (!dateStr) return null;
-        let d = parseISO(dateStr);
-        if (isValid(d)) return d;
-        d = new Date(dateStr);
-        if (isValid(d)) return d;
-        return null;
-      };
-
       const valid = comps
-        .map(c => parseDate(c['Completion Date']))
+        .map(c => parseDateSafe(c['Completion Date']))
         .filter(Boolean)
         .map(d => format(d, 'yyyy-MM-dd'))
         .filter(s => s <= todayStr);
@@ -50,9 +51,7 @@ export default function ClientProgress() {
         if (sorted.includes(ds)) {
           current++;
           cur.setDate(cur.getDate() - 1);
-        } else {
-          break;
-        }
+        } else break;
       }
       return current;
     } catch (e) {
@@ -62,15 +61,6 @@ export default function ClientProgress() {
   };
 
   const updateStreak = (comps) => setStreak(calculateStreak(comps));
-
-  const parseDateSafe = (dateStr) => {
-    if (!dateStr) return null;
-    let d = parseISO(dateStr);
-    if (isValid(d)) return d;
-    d = new Date(dateStr);
-    if (isValid(d)) return d;
-    return null;
-  };
 
   const generateDailyDataForWeek = (weekStart, comps) => {
     const weekEnd = endOfWeek(weekStart);
@@ -85,15 +75,15 @@ export default function ClientProgress() {
 
       days.push({
         day: format(d, 'EEE'),
-        date: format(d, 'MM/dd'),
+        date: format(d, 'dd/MM'), // 10/08 etc.
         completed,
         fullDate: format(d, 'MMM dd, yyyy')
       });
     }
     return days;
-    };
+  };
 
-  // Load data whenever the selected week changes
+  // ---------- data loads ----------
   useEffect(() => {
     (async () => {
       try {
@@ -117,7 +107,7 @@ export default function ClientProgress() {
     })();
   }, [selectedDate]);
 
-  // When the Today page saves, re-compute the streak (and refresh chart for the current week)
+  // refresh streak/chart after Today page saves
   useEffect(() => {
     const handler = async () => {
       try {
@@ -128,9 +118,10 @@ export default function ClientProgress() {
         ]);
         setAssignedCount(assigns?.length || 0);
         updateStreak(comps);
-        const daily = generateDailyDataForWeek(startOfWeek(new Date()), comps);
-        // If we're viewing the current week, refresh the chart
-        if (isSameWeek(selectedDate, new Date())) setData(daily);
+        if (isSameWeek(selectedDate, new Date())) {
+          const daily = generateDailyDataForWeek(startOfWeek(new Date()), comps);
+          setData(daily);
+        }
       } catch (e) {
         console.error('Error updating streak/chart:', e);
       }
@@ -141,73 +132,71 @@ export default function ClientProgress() {
 
   const weekStart = startOfWeek(selectedDate);
   const weekEnd = endOfWeek(selectedDate);
-
   const streakColor =
     streak >= 7 ? 'var(--success)' :
     streak >= 3 ? 'var(--warn)' :
     'var(--muted)';
+  const dailyGoal = assignedCount > 0 ? assignedCount : null;
 
-  const dailyGoal = assignedCount > 0 ? assignedCount : null; // optional goal line
+  // ---------- skeleton while loading ----------
+  if (loading) {
+    return (
+      <div>
+        <div className="pg-header">
+          <h2>Weekly Progress</h2>
+          <div className="streak-chip skeleton" style={{ width: 140, height: 28 }} />
+          <div className="nav-row">
+            <div className="btn skeleton" style={{ width: 120 }} />
+            <div className="week-title skeleton" style={{ width: 220 }} />
+            <div className="btn skeleton" style={{ width: 120 }} />
+          </div>
+        </div>
+        <div className="chart-skeleton">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="bar-skeleton" />
+          ))}
+        </div>
 
-  if (loading) return <div>Loading progress data...</div>;
+        <style>{skeletonCss}</style>
+        <style>{progressCss}</style>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h2>Weekly Progress</h2>
+      {/* Centered header stack */}
+      <div className="pg-header">
+        <h2>Weekly Progress</h2>
 
-      {/* Week navigator */}
-      <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
-        <button onClick={() => setSelectedDate(addWeeks(selectedDate, -1))}>Previous Week</button>
-        <span style={{ margin: '0 8px' }}>
-          {format(weekStart, 'MMM dd')} - {format(weekEnd, 'MMM dd, yyyy')}
-        </span>
-        <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>Next Week</button>
-        <button
-          onClick={() => setSelectedDate(new Date())}
-          disabled={isSameWeek(selectedDate, new Date())}
-          style={{ marginLeft: 'auto' }}
-        >
-          Today
-        </button>
-      </div>
+        <div className="streak-chip" style={{ color: 'var(--muted)' }}>
+          <span role="img" aria-label="streak">🔥</span>
+          <span>Streak:&nbsp;<strong style={{ color: streakColor }}>{streak}</strong>&nbsp;days</span>
+        </div>
 
-      {/* Week title + streak */}
-      <div style={{
-        textAlign: 'center',
-        margin: '20px 0',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '8px'
-      }}>
-        <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '18px', fontWeight: '500' }}>
-          Week of {format(weekStart, 'MMM dd')}–{format(weekEnd, 'MMM dd')}
-        </h3>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontSize: '14px',
-          color: 'var(--muted)',
-          padding: '4px 12px',
-          backgroundColor: 'var(--bg)',
-          borderRadius: 'var(--radius)',
-          border: '1px solid #e5e7eb'
-        }}>
-          <span>🔥</span>
-          <span>Streak: <strong style={{ color: streakColor }}>{streak}</strong> days</span>
+        <div className="nav-row">
+          <button className="btn" onClick={() => setSelectedDate(addWeeks(selectedDate, -1))}>
+            Previous Week
+          </button>
+          <div className="week-title">
+            {format(weekStart, 'MMM dd')} - {format(weekEnd, 'MMM dd, yyyy')}
+          </div>
+          <button className="btn" onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>
+            Next Week
+          </button>
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+      {/* Chart with 2-line X ticks */}
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={data} margin={{ top: 10, right: 24, left: 8, bottom: 28 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal vertical={false} stroke="#e0e0e0" />
-          <XAxis dataKey="day" tick={{ fontSize: 12, fill: 'var(--muted)' }} />
+          <XAxis dataKey="day" tick={<CustomTick />} />
           <YAxis
             allowDecimals={false}
             domain={[0, 'dataMax + 1']}
             tick={{ fontSize: 12, fill: 'var(--muted)' }}
-            label={{ value: 'Exercises Completed', angle: -90, position: 'insideLeft', style: { fill: 'var(--text)' } }}
+            label={{ value: 'Completed', angle: -90, position: 'insideLeft', style: { fill: 'var(--text)' } }}
           />
           <Tooltip
             content={({ active, payload }) => {
@@ -253,9 +242,82 @@ export default function ClientProgress() {
         </BarChart>
       </ResponsiveContainer>
 
-      <div style={{ marginTop: '20px' }}>
-        <a href="/my-exercises">← Back to Exercises</a>
+      <div style={{ marginTop: '20px', textAlign: 'center' }}>
+        <a href="/my-exercises" className="link">← Back to Exercises</a>
       </div>
+
+      {/* local CSS for header/buttons */}
+      <style>{progressCss}</style>
     </div>
   );
 }
+
+/** Custom two-line X-axis tick: Day on top, date under */
+function CustomTick({ x, y, payload }) {
+  const day = payload.value;
+  const date = payload?.payload?.date;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor="middle" fill="var(--muted)" fontSize="12">
+        <tspan dy="0">{day}</tspan>
+        <tspan x={0} dy="14" fill="var(--muted)">{date}</tspan>
+      </text>
+    </g>
+  );
+}
+
+/** Pretty header/buttons + layout */
+const progressCss = `
+.pg-header{
+  display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:12px;
+}
+.pg-header h2{
+  margin: 8px 0 2px; font-size: 22px; font-weight: 700; color: var(--text);
+}
+.streak-chip{
+  display:flex; align-items:center; gap:8px;
+  padding: 6px 12px; border:1px solid #e5e7eb; border-radius: var(--radius);
+  background: var(--bg);
+}
+.nav-row{
+  display:flex; align-items:center; gap:12px; margin-top: 2px;
+}
+.week-title{
+  min-width: 240px; text-align:center; font-weight:600; color: var(--text);
+}
+.btn{
+  appearance:none; border: 1px solid #e5e7eb; background: #fff; color: var(--text);
+  padding: 8px 14px; border-radius: 10px; font-weight:600; box-shadow: var(--shadow);
+  transition: transform .06s ease, box-shadow .2s ease, background-color .2s ease;
+}
+.btn:hover{ transform: translateY(-1px); }
+.btn:active{ transform: translateY(0); }
+.link{ color: var(--primary); text-decoration: none; font-weight: 600; }
+.link:hover{ text-decoration: underline; }
+`;
+
+/** Simple skeleton styles */
+const skeletonCss = `
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton{
+  background: #f3f4f6;
+  background-image: linear-gradient(90deg, #f3f4f6 0px, #e5e7eb 40px, #f3f4f6 80px);
+  background-size: 400px 100%;
+  animation: shimmer 1.2s infinite linear;
+  border-radius: var(--radius);
+}
+.chart-skeleton{
+  display:grid; grid-template-columns: repeat(7, 1fr); gap: 14px; height: 320px; align-items: end;
+  margin-top: 10px;
+}
+.bar-skeleton{
+  height: 60%; border-radius: 6px;
+  background: #f3f4f6;
+  background-image: linear-gradient(90deg, #f3f4f6 0px, #e5e7eb 40px, #f3f4f6 80px);
+  background-size: 400px 100%;
+  animation: shimmer 1.2s infinite linear;
+}
+`;
