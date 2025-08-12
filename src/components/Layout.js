@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import Button from './ui/Button'; // keep if used elsewhere
 import Card from './ui/Card';
 
 function BottomNav({ user }) {
@@ -18,10 +17,11 @@ function BottomNav({ user }) {
   return (
     <nav className="bottom-nav" role="navigation" aria-label="Primary" style={{
       position:'fixed', bottom:0, left:0, right:0, height:56, display:'flex', gap:8, background:'#fff',
-      borderTop:'1px solid #e5e7eb', padding:'6px 16px', zIndex:1000, paddingBottom:'calc(6px + env(safe-area-inset-bottom))'
+      borderTop:'1px solid #e5e7eb', padding:'6px 16px', zIndex:1000,
+      paddingBottom:'calc(6px + env(safe-area-inset-bottom))'
     }}>
-      <NavLink to="/my-exercises" end style={({isActive}) => linkStyle(isActive)}>Exercises</NavLink>
-      <NavLink to="/progress" style={({isActive}) => linkStyle(isActive)}>Progress</NavLink>
+      <NavLink to="/my-exercises" end style={({ isActive }) => linkStyle(isActive)}>Exercises</NavLink>
+      <NavLink to="/progress" style={({ isActive }) => linkStyle(isActive)}>Progress</NavLink>
     </nav>
   );
 }
@@ -29,6 +29,7 @@ function BottomNav({ user }) {
 export default function Layout({ user, children }) {
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
+  const isClient = user?.user_type === 'client';
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 768);
@@ -41,12 +42,12 @@ export default function Layout({ user, children }) {
     navigate('/login');
   };
 
-  const links = user.user_type === 'client'
+  const links = isClient
     ? [{ to: '/my-exercises', label: 'My Exercises' }, { to: '/progress', label: 'Progress' }]
     : [{ to: '/dashboard', label: 'Dashboard' }, { to: '/clients', label: 'Clients' }, { to: '/exercises', label: 'Library' }];
 
-  const showSidebar = !isMobile;
-  const showClientTopbar = isMobile && user?.user_type === 'client';
+  const showSidebar = !isMobile; // keep the sidebar on desktop
+  const showClientTopbar = isClient; // <— show for client on BOTH mobile & desktop
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -56,22 +57,39 @@ export default function Layout({ user, children }) {
           <nav>
             {links.map(l => (
               <NavLink key={l.to} to={l.to} style={({ isActive }) => ({
-                display: 'block', margin: '8px 0', textDecoration: 'none', fontWeight: isActive ? 'bold' : 'normal'
+                display: 'block', margin: '8px 0', textDecoration: 'none',
+                fontWeight: isActive ? 'bold' : 'normal'
               })}>{l.label}</NavLink>
             ))}
           </nav>
-          <Button onClick={handleLogout}>Log Out</Button>
+          {/* Avoid duplicate logout for clients — it’s in the top bar now */}
+          {!isClient && (
+            <button className="btn" onClick={handleLogout}>Log Out</button>
+          )}
         </aside>
       )}
 
-      <main className="page" style={{ flex: 1, padding: 20, paddingBottom: showClientTopbar ? 80 : 20, background: '#fff' }}>
-        {/* Mobile client top bar with logo + logout */}
+      <main
+        className="page"
+        style={{
+          flex: 1,
+          padding: 20,
+          paddingBottom: isClient && isMobile ? 80 : 20, // space for bottom nav on mobile
+          background: '#fff'
+        }}
+      >
+        {/* Client top bar with bigger logo + Log Out on ALL screen sizes */}
         {showClientTopbar && (
-          <div style={{
+          <div className="brandbar" style={{
             display:'flex', alignItems:'center', justifyContent:'space-between',
-            marginBottom:12, padding:'8px 4px'
+            marginBottom: 16, gap: 12
           }}>
-            <img src="/bridges-and-balance-logo-wide.png" alt="Bridges & Balance" style={{ height: 28 }} />
+            <img
+              src="/brand-logo.png"
+              alt="Bridges & Balance"
+              className="brand-logo"
+              style={{ height: 40, width: 'auto', objectFit: 'contain' }}
+            />
             <button className="btn" onClick={handleLogout} aria-label="Log out">Log Out</button>
           </div>
         )}
@@ -82,7 +100,11 @@ export default function Layout({ user, children }) {
       <BottomNav user={user} />
 
       <style>{`
-        @media (max-width:768px){
+        /* make logo bigger on desktop */
+        @media (min-width: 768px){
+          .brand-logo{ height: 56px !important; }
+        }
+        @media (max-width: 768px){
           .sidebar{ display:none !important; }
           .page{ padding-bottom: 80px; } /* room for bottom nav */
         }
