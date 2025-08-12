@@ -1,5 +1,5 @@
 // src/pages/ClientDashboard.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { auth } from '../services/auth';
 import { assignments, exerciseCompletions, exercises } from '../services/airtable';
 import { startOfWeek, endOfWeek, format, addWeeks, parseISO, isValid } from 'date-fns';
@@ -22,6 +22,44 @@ export default function ClientDashboard() {
   // Store today's date in ISO format
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
+  // Show toast function
+  const displayToast = (message, type = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 1500);
+  };
+
+  // Calculate completion stats with useMemo to prevent recalculation
+  const { totalExercises, completedToday, completionPercentage } = useMemo(() => {
+    const total = assignList.length;
+    const completed = Object.values(selections).filter(v => v).length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { totalExercises: total, completedToday: completed, completionPercentage: percentage };
+  }, [assignList.length, selections]);
+
+  // Calculate week dates and completions with useMemo
+  const { weekStart, weekEnd, weekCompletions } = useMemo(() => {
+    const start = startOfWeek(selectedDate);
+    const end = endOfWeek(selectedDate);
+    
+    const parseDate = (dateStr) => {
+      if (!dateStr) return null;
+      let date = parseISO(dateStr);
+      if (isValid(date)) return date;
+      date = new Date(dateStr);
+      if (isValid(date)) return date;
+      return null;
+    };
+    
+    const weekComps = completions.filter(c => {
+      const d = parseDate(c['Completion Date']);
+      return d && d >= start && d <= end;
+    });
+    
+    return { weekStart: start, weekEnd: end, weekCompletions: weekComps };
+  }, [selectedDate, completions]);
+
   // Check if celebration was already shown today
   useEffect(() => {
     const celebrationKey = `celebration-${todayStr}`;
@@ -34,13 +72,20 @@ export default function ClientDashboard() {
     }
   }, [completedToday, totalExercises, todayStr]);
 
-  // Show toast function
-  const displayToast = (message, type = 'success') => {
-    setToastMessage(message);
-    setToastType(type);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 1500);
-  };
+  // Build selection state based on this week's completions
+  useEffect(() => {
+    if (assignList.length > 0) {
+      const sel = {};
+      assignList.forEach(a => {
+        const completedThisWeek = weekCompletions.some(c => {
+          const assignmentId = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
+          return assignmentId === a.id;
+        });
+        sel[a.id] = completedThisWeek;
+      });
+      setSelections(sel);
+    }
+  }, [assignList, weekCompletions]);
 
   useEffect(() => {
     loadData();
@@ -153,49 +198,6 @@ export default function ClientDashboard() {
       setLoading(false);
     }
   };
-
-  // Calculate completion stats
-  const totalExercises = assignList.length;
-  const completedToday = Object.values(selections).filter(v => v).length;
-  const completionPercentage = totalExercises > 0 
-    ? Math.round((completedToday / totalExercises) * 100) 
-    : 0;
-
-  const weekStart = startOfWeek(selectedDate);
-  const weekEnd = endOfWeek(selectedDate);
-  const parseDate = (dateStr) => {
-    if (!dateStr) return null;
-    let date = parseISO(dateStr);
-    if (isValid(date)) return date;
-    date = new Date(dateStr);
-    if (isValid(date)) return date;
-    return null;
-  };
-  // Find completions for the selected week
-  const weekCompletions = completions.filter(c => {
-    const d = parseDate(c['Completion Date']);
-    return d && d >= weekStart && d <= weekEnd;
-  });
-  console.log('[DEBUG] Filtering for week:', weekStart, weekEnd);
-  completions.forEach(c => {
-    const d = parseDate(c['Completion Date']);
-    const assignmentId = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
-    console.log('[DEBUG] Completion:', c, 'Parsed date:', d, 'In week:', d && d >= weekStart && d <= weekEnd, 'Assignment ID:', assignmentId);
-  });
-  console.log('[DEBUG] Client assignments:', assignList.map(a => a.id));
-  // Build selection state based on this week's completions
-  useEffect(() => {
-    const sel = {};
-    assignList.forEach(a => {
-      const completedThisWeek = weekCompletions.some(c => {
-        const assignmentId = Array.isArray(c.Assignment) ? c.Assignment[0] : c.Assignment;
-        return assignmentId === a.id;
-      });
-      sel[a.id] = completedThisWeek;
-    });
-    setSelections(sel);
-    // eslint-disable-next-line
-  }, [assignList, completions, selectedDate]);
 
   return (
     <div>
