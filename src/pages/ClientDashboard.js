@@ -190,6 +190,9 @@ export default function ClientDashboard() {
       // Show success toast
       displayToast('Progress saved successfully!', 'success');
       
+      // Dispatch custom event to notify other components (like progress chart) to update
+      window.dispatchEvent(new CustomEvent('completion-updated'));
+      
       // Keep button disabled for 1 second after save
       setTimeout(() => setLoading(false), 1000);
     } catch (error) {
