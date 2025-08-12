@@ -1,3 +1,4 @@
+// src/pages/ClientProgress.js
 import React, { useState, useEffect } from 'react';
 import { auth } from '../services/auth';
 import { assignments, exerciseCompletions } from '../services/airtable';
@@ -29,7 +30,12 @@ export default function ClientProgress() {
       const completed = comps?.filter(c => {
         const cd = parseDateSafe(c['Completion Date']); return cd && format(cd, 'yyyy-MM-dd') === key;
       }).length ?? 0;
-      arr.push({ day: format(d, 'EEE'), date: format(d, 'dd/MM'), fullDate: format(d, 'MMM dd, yyyy'), completed });
+      arr.push({
+        day: format(d, 'EEE'),
+        date: format(d, 'dd/MM'),
+        fullDate: format(d, 'MMM dd, yyyy'),
+        completed
+      });
     }
     return arr;
   };
@@ -56,7 +62,9 @@ export default function ClientProgress() {
       try {
         const user = await auth.getCurrentUser();
         const comps = await exerciseCompletions.listForClient(user.email);
-        if (isSameWeek(selectedDate, new Date())) setData(makeWeek(startOfWeek(new Date()), comps));
+        if (isSameWeek(selectedDate, new Date())) {
+          setData(makeWeek(startOfWeek(new Date()), comps));
+        }
       } catch (e) { console.error(e); }
     };
     window.addEventListener('completion-updated', h);
@@ -71,10 +79,10 @@ export default function ClientProgress() {
       <div className="progress-page">
         <div className="pg-header">
           <h2>Weekly Progress</h2>
-          <div className="nav-row">
-            <div className="btn skeleton" style={{ width: 140 }} />
-            <div className="week-title skeleton" style={{ width: 260 }} />
-            <div className="btn skeleton" style={{ width: 140 }} />
+          <div className="nav-grid">
+            <div className="week-title skeleton" style={{ height: 20, width: 260 }} />
+            <div className="btn skeleton" style={{ width: 140, height: 36 }} />
+            <div className="btn skeleton" style={{ width: 140, height: 36 }} />
           </div>
         </div>
         <div className="chart-skeleton">
@@ -91,10 +99,19 @@ export default function ClientProgress() {
       <div className="pg-header">
         <h2>Weekly Progress</h2>
 
-        <div className="nav-row">
-          <button className="btn" onClick={() => setSelectedDate(addWeeks(selectedDate, -1))}>Previous Week</button>
-          <div className="week-title">{format(ws, 'MMM dd')} - {format(we, 'MMM dd, yyyy')}</div>
-          <button className="btn" onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>Next Week</button>
+        {/* Responsive grid header:
+            - Mobile: title full-width on first row; buttons side-by-side under it
+            - Desktop: prev | title | next */}
+        <div className="nav-grid">
+          <div className="week-title">
+            {format(ws, 'MMM dd')} - {format(we, 'MMM dd, yyyy')}
+          </div>
+          <button className="btn prev" onClick={() => setSelectedDate(addWeeks(selectedDate, -1))}>
+            Previous Week
+          </button>
+          <button className="btn next" onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>
+            Next Week
+          </button>
         </div>
       </div>
 
@@ -112,9 +129,19 @@ export default function ClientProgress() {
             content={({ active, payload }) => {
               if (active && payload && payload[0]) {
                 return (
-                  <div style={{ background: 'var(--card)', padding: 'var(--sp-3)', border: '1px solid #e5e7eb', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)' }}>
-                    <p style={{ margin: '0 0 8px', fontWeight: 600 }}>{payload[0].payload.fullDate}</p>
-                    <p style={{ margin: 0, color: 'var(--primary)' }}>Completed: <strong>{payload[0].value}</strong></p>
+                  <div style={{
+                    background: 'var(--card)',
+                    padding: 'var(--sp-3)',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 'var(--radius)',
+                    boxShadow: 'var(--shadow)'
+                  }}>
+                    <p style={{ margin: '0 0 8px', fontWeight: 600 }}>
+                      {payload[0].payload.fullDate}
+                    </p>
+                    <p style={{ margin: 0, color: 'var(--primary)' }}>
+                      Completed: <strong>{payload[0].value}</strong>
+                    </p>
                   </div>
                 );
               }
@@ -131,18 +158,22 @@ export default function ClientProgress() {
             radius={[4, 4, 0, 0]}
           />
           {typeof dailyGoal === 'number' && dailyGoal > 0 && (
-            <ReferenceLine y={dailyGoal} stroke="var(--success)" strokeDasharray="3 3" label={{ value: 'Daily goal', position: 'right', fill: 'var(--success)', fontSize: 12 }} />
+            <ReferenceLine
+              y={dailyGoal}
+              stroke="var(--success)"
+              strokeDasharray="3 3"
+              label={{ value: 'Daily goal', position: 'right', fill: 'var(--success)', fontSize: 12 }}
+            />
           )}
         </BarChart>
       </ResponsiveContainer>
 
-      {/* No extra "Back to Exercises" link; tabs handle navigation */}
       <style>{progressCss}</style>
     </div>
   );
 }
 
-/* Day + Date stacked, with space from axis */
+/* Two-line tick: Day (top), Date (below) */
 function CustomTick({ x, y, payload }) {
   const day = payload.value;
   const date = payload?.payload?.date;
@@ -156,17 +187,28 @@ function CustomTick({ x, y, payload }) {
   );
 }
 
-/* Header/buttons + mobile wrap + overflow guard */
+/* Header + responsive grid + overflow guard */
 const progressCss = `
 .progress-page{ overflow-x: hidden; }
 .pg-header{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:12px; }
 .pg-header h2{ margin:8px 0 2px; font-size: var(--h1); font-weight:700; color: var(--text); }
-.nav-row{ display:flex; align-items:center; gap:12px; margin-top:2px; flex-wrap: wrap; justify-content: center; }
-.week-title{ min-width: 220px; text-align:center; font-weight:600; color: var(--text); }
-.btn{ appearance:none; border: 1px solid #e5e7eb; background: #fff; color: var(--text);
-      padding: 8px 14px; border-radius: 10px; font-weight:600; box-shadow: var(--shadow);
-      transition: transform .06s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease; }
-.btn:hover{ background: rgba(79,70,229,.10); color: var(--primary); }
+
+/* New responsive grid header */
+.nav-grid{
+  display:grid; gap:12px; width:100%; max-width:560px;
+}
+/* Mobile (default): title full width on first row; buttons side-by-side below */
+.nav-grid .week-title{ text-align:center; font-weight:600; color: var(--text); }
+.nav-grid .prev{ justify-self:end; }
+.nav-grid .next{ justify-self:start; }
+
+/* Desktop/tablet: prev | title | next on one row */
+@media (min-width: 768px){
+  .nav-grid{ grid-template-columns: 1fr auto 1fr; align-items:center; }
+  .nav-grid .week-title{ grid-column: 2; justify-self:center; }
+  .nav-grid .prev{ grid-column: 1; justify-self:end; }
+  .nav-grid .next{ grid-column: 3; justify-self:start; }
+}
 `;
 
 /* Skeletons */
