@@ -1,0 +1,6 @@
+:root{
+  --primary:#4F46E5; --success:#10B981; --warn:#F59E0B; --danger:#EF4444;
+  --text:#111827; --muted:#6B7280; --bg:#F8FAFC; --card:#FFFFFF;
+  --radius:12px; --shadow:0 6px 18px rgba(0,0,0,.06);
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px;
+}

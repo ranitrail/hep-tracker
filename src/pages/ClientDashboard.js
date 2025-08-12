@@ -247,39 +247,79 @@ export default function ClientDashboard() {
               return (
                 <div
                   key={a.id}
+                  className="exercise-card"
                   style={{
-                    padding: '15px',
-                    marginBottom: '10px',
-                    backgroundColor: done ? '#e7f3ff' : '#f8f9fa',
-                    border: `2px solid ${done ? '#007bff' : '#dee2e6'}`,
-                    borderRadius: '8px',
+                    width: '100%',
+                    padding: 'var(--sp-4)',
+                    marginBottom: 'var(--sp-2)',
+                    backgroundColor: done 
+                      ? 'rgba(16, 185, 129, 0.08)' 
+                      : 'var(--card)',
+                    border: `2px solid ${done ? 'var(--success)' : '#dee2e6'}`,
+                    borderRadius: 'var(--radius)',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    transition: 'background-color 0.2s, box-shadow 0.2s',
+                    boxShadow: 'var(--shadow)',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
                   onClick={() => toggleSelection(a.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleSelection(a.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-pressed={done}
+                  aria-label={`${exName} - ${a.Sets} sets × ${a.Reps} reps`}
                 >
-                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={done}
-                      readOnly
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        marginRight: '15px',
-                        cursor: 'pointer'
-                      }}
-                    />
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    minHeight: '44px'
+                  }}>
                     <div style={{ flex: 1 }}>
-                      <strong style={{ fontSize: '18px' }}>{exName}</strong>
-                      <div style={{ color: '#6c757d', marginTop: '5px' }}>
-                        {a.Sets} sets × {a.Reps} reps
-                      </div>
+                      <h3 style={{ 
+                        margin: '0 0 var(--sp-1) 0', 
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        color: 'var(--text)'
+                      }}>
+                        {exName}
+                      </h3>
+                      <p style={{ 
+                        margin: 0, 
+                        color: 'var(--muted)', 
+                        fontSize: '14px'
+                      }}>
+                        {a.Sets} × {a.Reps}
+                      </p>
                     </div>
-                    {done && (
-                      <span style={{ color: '#28a745', fontSize: '24px' }}>✓</span>
-                    )}
-                  </label>
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      backgroundColor: done ? 'var(--success)' : 'transparent',
+                      border: `2px solid ${done ? 'var(--success)' : '#dee2e6'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      {done && (
+                        <span style={{ 
+                          color: 'white', 
+                          fontSize: '14px',
+                          fontWeight: 'bold'
+                        }}>
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}

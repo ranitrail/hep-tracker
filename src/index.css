@@ -1,3 +1,34 @@
+@import './styles/tokens.css';
+
+/* Exercise card interactive states */
+.exercise-card {
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.exercise-card:hover {
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.exercise-card:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.exercise-card:active {
+  transform: scale(0.98);
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .exercise-card {
+    transition: none;
+  }
+  
+  .exercise-card:active {
+    transform: none;
+  }
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
