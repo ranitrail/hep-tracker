@@ -190,25 +190,43 @@ function CustomTick({ x, y, payload }) {
 /* Header + responsive grid + overflow guard */
 const progressCss = `
 .progress-page{ overflow-x: hidden; }
-.pg-header{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:12px; }
-.pg-header h2{ margin:8px 0 2px; font-size: var(--h1); font-weight:700; color: var(--text); }
 
-/* New responsive grid header */
+/* Header */
+.pg-header{
+  display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:12px;
+}
+.pg-header h2{
+  margin:8px 0 2px; font-size: var(--h1); font-weight:700; color: var(--text);
+}
+
+/* Responsive grid:
+   Mobile (default):     [ title title ] on first row
+                         [ prev  next  ] on second row
+   ≥768px:               [ prev  title next ] on one row
+*/
 .nav-grid{
   display:grid; gap:12px; width:100%; max-width:560px;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "title title"
+    "prev  next";
+  align-items:center; justify-items:stretch;
 }
-/* Mobile (default): title full width on first row; buttons side-by-side below */
-.nav-grid .week-title{ text-align:center; font-weight:600; color: var(--text); }
-.nav-grid .prev{ justify-self:end; }
-.nav-grid .next{ justify-self:start; }
+.nav-grid .week-title{ grid-area:title; text-align:center; font-weight:600; color: var(--text); }
+.nav-grid .prev{ grid-area:prev; justify-self:end; }
+.nav-grid .next{ grid-area:next; justify-self:start; }
 
-/* Desktop/tablet: prev | title | next on one row */
-@media (min-width: 768px){
-  .nav-grid{ grid-template-columns: 1fr auto 1fr; align-items:center; }
-  .nav-grid .week-title{ grid-column: 2; justify-self:center; }
-  .nav-grid .prev{ grid-column: 1; justify-self:end; }
-  .nav-grid .next{ grid-column: 3; justify-self:start; }
+@media (min-width:768px){
+  .nav-grid{
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-areas: "prev title next";
+  }
+  .nav-grid .week-title{ justify-self:center; }
+  .nav-grid .prev{ justify-self:end; }
+  .nav-grid .next{ justify-self:start; }
 }
+
+/* (Buttons now use the global .btn class) */
 `;
 
 /* Skeletons */
