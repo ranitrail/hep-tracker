@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import TherapistTabs from '../components/TherapistTabs';
 import { exercises } from '../services/airtable';
 
 export default function ExerciseLibrary() {
@@ -22,7 +23,9 @@ export default function ExerciseLibrary() {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const toast = (msg) => {
@@ -41,9 +44,12 @@ export default function ExerciseLibrary() {
     try {
       const rec = await exercises.create({
         Name: name.trim(),
-        Description: desc.trim()
+        Description: desc.trim(),
       });
-      setList(prev => [...prev, { id: rec.id, Name: name.trim(), Description: desc.trim() }]);
+      setList((prev) => [
+        ...prev,
+        { id: rec.id, Name: name.trim(), Description: desc.trim() },
+      ]);
       setName('');
       setDesc('');
       toast('Exercise added successfully!');
@@ -59,6 +65,7 @@ export default function ExerciseLibrary() {
     return (
       <div className="container">
         <h2 style={{ textAlign: 'center' }}>Exercise Library</h2>
+        <TherapistTabs />
         <div className="skeleton-card big" />
         <div className="skeleton-card" />
         <div className="skeleton-card" />
@@ -70,12 +77,8 @@ export default function ExerciseLibrary() {
 
   return (
     <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ margin: 0, textAlign: 'center', flex: 1 }}>Exercise Library</h2>
-        <a className="btn" href="/dashboard" style={{ marginLeft: 12, whiteSpace: 'nowrap' }}>
-          ← Back to Client Summary
-        </a>
-      </div>
+      <h2 style={{ textAlign: 'center' }}>Exercise Library</h2>
+      <TherapistTabs />
 
       {/* Add New Exercise Card */}
       <div className="card" style={{ marginBottom: 'var(--sp-4)' }}>
@@ -83,7 +86,15 @@ export default function ExerciseLibrary() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: 'var(--sp-2)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'var(--text)',
+              }}
+            >
               Exercise Name *
             </label>
             <input
@@ -91,20 +102,28 @@ export default function ExerciseLibrary() {
               type="text"
               placeholder="e.g., Squats, Lunges, Shoulder Press"
               value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAdd()}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAdd()}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: 'var(--sp-2)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'var(--text)',
+              }}
+            >
               Description (optional)
             </label>
             <textarea
               className="textarea"
               placeholder="Describe the exercise, muscles targeted, or special instructions"
               value={desc}
-              onChange={e => setDesc(e.target.value)}
+              onChange={(e) => setDesc(e.target.value)}
               rows={3}
             />
           </div>
@@ -123,27 +142,39 @@ export default function ExerciseLibrary() {
 
       {/* Exercises List Header */}
       <div className="card" style={{ marginBottom: '12px' }}>
-        <h3 style={{ margin: '0 0 10px' }}>
-          All Exercises ({list.length})
-        </h3>
+        <h3 style={{ margin: '0 0 10px' }}>All Exercises ({list.length})</h3>
       </div>
 
       {/* Exercises List */}
       {list.length === 0 ? (
-        <div style={{ padding: 'var(--sp-6)', textAlign: 'center', color: 'var(--muted)', background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid #e5e7eb' }}>
+        <div
+          style={{
+            padding: 'var(--sp-6)',
+            textAlign: 'center',
+            color: 'var(--muted)',
+            background: 'var(--card)',
+            borderRadius: 'var(--radius)',
+            border: '1px solid #e5e7eb',
+          }}
+        >
           No exercises yet. Add your first exercise above!
         </div>
       ) : (
         <div>
-          {list.map(exercise => (
+          {list.map((exercise) => (
             <div
               key={exercise.id}
               className="exercise-card"
-              style={{ padding: 'var(--sp-4)', margin: '0 0 var(--sp-2)', background: 'var(--card)', border: '2px solid #dee2e6', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)' }}
+              style={{
+                padding: 'var(--sp-4)',
+                margin: '0 0 var(--sp-2)',
+                background: 'var(--card)',
+                border: '2px solid #dee2e6',
+                borderRadius: 'var(--radius)',
+                boxShadow: 'var(--shadow)',
+              }}
             >
-              <h3 style={{ margin: '0 0 4px', color: 'var(--text)' }}>
-                {exercise.Name}
-              </h3>
+              <h3 style={{ margin: '0 0 4px', color: 'var(--text)' }}>{exercise.Name}</h3>
               {exercise.Description && (
                 <p style={{ margin: 0, color: 'var(--muted)', fontSize: 14 }}>
                   {exercise.Description}
@@ -169,7 +200,7 @@ export default function ExerciseLibrary() {
             borderRadius: 'var(--radius)',
             boxShadow: 'var(--shadow)',
             fontSize: 14,
-            fontWeight: 500
+            fontWeight: 500,
           }}
           aria-live="polite"
           role="status"
@@ -182,7 +213,7 @@ export default function ExerciseLibrary() {
   );
 }
 
-/* Skeleton styles - matching ClientDashboard */
+/* Skeletons */
 const skeletonCss = `
 @keyframes shimmer {
   0% { background-position: -400px 0 }
@@ -195,12 +226,6 @@ const skeletonCss = `
   animation: shimmer 1.2s infinite linear;
   border-radius: 12px;
 }
-.skeleton-card {
-  height: 72px;
-  margin: 12px 0;
-}
-.skeleton-card.big {
-  height: 180px;
-  margin-top: 8px;
-}
+.skeleton-card { height: 72px; margin: 12px 0; }
+.skeleton-card.big { height: 180px; margin-top: 8px; }
 `;
