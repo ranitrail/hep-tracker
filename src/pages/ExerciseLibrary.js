@@ -55,7 +55,6 @@ export default function ExerciseLibrary() {
     }
   };
 
-  // Loading skeleton
   if (loading) {
     return (
       <div className="container">
@@ -71,7 +70,12 @@ export default function ExerciseLibrary() {
 
   return (
     <div className="container">
-      <h2 style={{ textAlign: 'center' }}>Exercise Library</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h2 style={{ margin: 0, textAlign: 'center', flex: 1 }}>Exercise Library</h2>
+        <a className="btn" href="/dashboard" style={{ marginLeft: 12, whiteSpace: 'nowrap' }}>
+          ← Back to Client Summary
+        </a>
+      </div>
 
       {/* Add New Exercise Card */}
       <div className="card" style={{ marginBottom: 'var(--sp-4)' }}>
@@ -79,13 +83,7 @@ export default function ExerciseLibrary() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: 'var(--sp-2)',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--text)'
-            }}>
+            <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
               Exercise Name *
             </label>
             <input
@@ -99,13 +97,7 @@ export default function ExerciseLibrary() {
           </div>
 
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: 'var(--sp-2)',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--text)'
-            }}>
+            <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
               Description (optional)
             </label>
             <textarea
@@ -138,14 +130,7 @@ export default function ExerciseLibrary() {
 
       {/* Exercises List */}
       {list.length === 0 ? (
-        <div style={{
-          padding: 'var(--sp-6)',
-          textAlign: 'center',
-          color: 'var(--muted)',
-          background: 'var(--card)',
-          borderRadius: 'var(--radius)',
-          border: '1px solid #e5e7eb'
-        }}>
+        <div style={{ padding: 'var(--sp-6)', textAlign: 'center', color: 'var(--muted)', background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid #e5e7eb' }}>
           No exercises yet. Add your first exercise above!
         </div>
       ) : (
@@ -154,14 +139,7 @@ export default function ExerciseLibrary() {
             <div
               key={exercise.id}
               className="exercise-card"
-              style={{
-                padding: 'var(--sp-4)',
-                margin: '0 0 var(--sp-2)',
-                background: 'var(--card)',
-                border: '2px solid #dee2e6',
-                borderRadius: 'var(--radius)',
-                boxShadow: 'var(--shadow)'
-              }}
+              style={{ padding: 'var(--sp-4)', margin: '0 0 var(--sp-2)', background: 'var(--card)', border: '2px solid #dee2e6', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)' }}
             >
               <h3 style={{ margin: '0 0 4px', color: 'var(--text)' }}>
                 {exercise.Name}

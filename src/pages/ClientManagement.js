@@ -18,28 +18,42 @@ export default function ClientManagement() {
     let mounted = true;
     (async () => {
       try {
-        const [cls, exs, assigns] = await Promise.all([
+        const [clsRes, exsRes, asgRes] = await Promise.allSettled([
           clients.list(),
           exercises.list(),
           assignments.list()
         ]);
+
         if (!mounted) return;
 
-        setClientList(cls);
-        setExerciseList(exs);
+        if (clsRes.status === 'fulfilled') {
+          setClientList(clsRes.value);
+        } else {
+          console.error('Error loading clients:', clsRes.reason);
+          toast('Error loading clients');
+        }
 
-        // Group assignments by client id for display
-        const assignMap = {};
-        assigns.forEach(a => {
-          const clientId = Array.isArray(a.Client) ? a.Client[0] : a.Client;
-          if (!clientId) return;
-          if (!assignMap[clientId]) assignMap[clientId] = [];
-          assignMap[clientId].push(a);
-        });
-        setClientAssignments(assignMap);
-      } catch (error) {
-        console.error('Error loading data:', error);
-        toast('Error loading data');
+        if (exsRes.status === 'fulfilled') {
+          setExerciseList(exsRes.value);
+        } else {
+          console.error('Error loading exercises:', exsRes.reason);
+          toast('Error loading exercises');
+        }
+
+        if (asgRes.status === 'fulfilled') {
+          const assigns = asgRes.value;
+          const map = {};
+          assigns.forEach(a => {
+            const clientId = Array.isArray(a.Client) ? a.Client[0] : a.Client;
+            if (!clientId) return;
+            (map[clientId] ||= []).push(a);
+          });
+          setClientAssignments(map);
+        } else {
+          console.error('Error loading assignments:', asgRes.reason);
+          // Don’t block the page—just show a toast; clients/exercises still render
+          toast('Error loading assignments');
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -69,30 +83,28 @@ export default function ClientManagement() {
       });
 
       toast('Exercise assigned successfully!');
-
-      // Reset form
       setSelectedEx('');
       setSets(3);
       setReps(10);
 
-      // Reload to show updated assignments
-      // (reuse the same pattern as initial load)
-      const [cls, exs, assigns] = await Promise.all([
+      // Refresh data, but tolerate partial failures
+      const [clsRes, exsRes, asgRes] = await Promise.allSettled([
         clients.list(),
         exercises.list(),
         assignments.list()
       ]);
-      setClientList(cls);
-      setExerciseList(exs);
 
-      const assignMap = {};
-      assigns.forEach(a => {
-        const clientId = Array.isArray(a.Client) ? a.Client[0] : a.Client;
-        if (!clientId) return;
-        if (!assignMap[clientId]) assignMap[clientId] = [];
-        assignMap[clientId].push(a);
-      });
-      setClientAssignments(assignMap);
+      if (clsRes.status === 'fulfilled') setClientList(clsRes.value);
+      if (exsRes.status === 'fulfilled') setExerciseList(exsRes.value);
+      if (asgRes.status === 'fulfilled') {
+        const map = {};
+        asgRes.value.forEach(a => {
+          const clientId = Array.isArray(a.Client) ? a.Client[0] : a.Client;
+          if (!clientId) return;
+          (map[clientId] ||= []).push(a);
+        });
+        setClientAssignments(map);
+      }
     } catch (error) {
       console.error('Error assigning exercise:', error);
       toast('Error assigning exercise');
@@ -101,7 +113,6 @@ export default function ClientManagement() {
     }
   };
 
-  // Loading skeleton
   if (loading) {
     return (
       <div className="container">
@@ -114,13 +125,17 @@ export default function ClientManagement() {
     );
   }
 
-  // Get selected client's info & assignments
   const selectedClientInfo = clientList.find(c => c.id === selectedClient);
   const selectedClientAssignments = clientAssignments[selectedClient] || [];
 
   return (
     <div className="container">
-      <h2 style={{ textAlign: 'center' }}>Assign Exercises</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h2 style={{ margin: 0, textAlign: 'center', flex: 1 }}>Assign Exercises</h2>
+        <a className="btn" href="/dashboard" style={{ marginLeft: 12, whiteSpace: 'nowrap' }}>
+          ← Back to Client Summary
+        </a>
+      </div>
 
       {/* Assignment Form Card */}
       <div className="card" style={{ marginBottom: 'var(--sp-4)' }}>
@@ -129,13 +144,7 @@ export default function ClientManagement() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
           {/* Client Selection */}
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: 'var(--sp-2)',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--text)'
-            }}>
+            <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
               Select Client *
             </label>
             <select
@@ -155,13 +164,7 @@ export default function ClientManagement() {
 
           {/* Exercise Selection */}
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: 'var(--sp-2)',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--text)'
-            }}>
+            <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
               Select Exercise *
             </label>
             <select
@@ -182,13 +185,7 @@ export default function ClientManagement() {
           {/* Sets and Reps */}
           <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
             <div style={{ flex: 1 }}>
-              <label style={{
-                display: 'block',
-                marginBottom: 'var(--sp-2)',
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--text)'
-              }}>
+              <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 Sets
               </label>
               <input
@@ -201,13 +198,7 @@ export default function ClientManagement() {
             </div>
 
             <div style={{ flex: 1 }}>
-              <label style={{
-                display: 'block',
-                marginBottom: 'var(--sp-2)',
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--text)'
-              }}>
+              <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 Reps
               </label>
               <input
@@ -245,14 +236,7 @@ export default function ClientManagement() {
           </div>
 
           {selectedClientAssignments.length === 0 ? (
-            <div style={{
-              padding: 'var(--sp-6)',
-              textAlign: 'center',
-              color: 'var(--muted)',
-              background: 'var(--card)',
-              borderRadius: 'var(--radius)',
-              border: '1px solid #e5e7eb'
-            }}>
+            <div style={{ padding: 'var(--sp-6)', textAlign: 'center', color: 'var(--muted)', background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid #e5e7eb' }}>
               No exercises assigned yet. Assign one above!
             </div>
           ) : (
@@ -262,18 +246,7 @@ export default function ClientManagement() {
                 const exercise = exerciseList.find(ex => ex.id === exerciseId);
 
                 return (
-                  <div
-                    key={assignment.id}
-                    className="exercise-card"
-                    style={{
-                      padding: 'var(--sp-4)',
-                      margin: '0 0 var(--sp-2)',
-                      background: 'var(--card)',
-                      border: '2px solid #dee2e6',
-                      borderRadius: 'var(--radius)',
-                      boxShadow: 'var(--shadow)'
-                    }}
-                  >
+                  <div key={assignment.id} className="exercise-card" style={{ padding: 'var(--sp-4)', margin: '0 0 var(--sp-2)', background: 'var(--card)', border: '2px solid #dee2e6', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)' }}>
                     <h3 style={{ margin: '0 0 4px' }}>
                       {exercise ? exercise.Name : 'Unknown Exercise'}
                     </h3>
@@ -291,11 +264,7 @@ export default function ClientManagement() {
       {/* Summary Stats */}
       <div className="card" style={{ marginTop: 'var(--sp-6)' }}>
         <h3 style={{ margin: '0 0 16px' }}>Overview</h3>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: 'var(--sp-6)'
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--sp-6)' }}>
           <div>
             <p style={{ margin: 0, color: 'var(--muted)', fontSize: 14 }}>Total Clients</p>
             <p style={{ margin: '4px 0 0', fontSize: 24, fontWeight: 700, color: 'var(--primary)' }}>
@@ -326,9 +295,7 @@ export default function ClientManagement() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 9999,
-            background: toastMessage.includes('Error') || toastMessage.includes('select')
-              ? 'var(--danger)'
-              : 'var(--success)',
+            background: toastMessage.includes('Error') || toastMessage.includes('select') ? 'var(--danger)' : 'var(--success)',
             color: '#fff',
             padding: 'var(--sp-3) var(--sp-4)',
             borderRadius: 'var(--radius)',
