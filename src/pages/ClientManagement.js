@@ -16,8 +16,26 @@ export default function ClientManagement() {
 
   useEffect(() => {
     let mounted = true;
+
+    const normalizeClients = (arr) =>
+      (arr ?? []).map(r => ({
+        id: r?.id ?? r?.recordId ?? r?.['Record ID'] ?? r?.fields?.id ?? r?.fields?.['Record ID'] ?? r?.Email, // last resort
+        Name: r?.Name ?? r?.fields?.Name ?? '',
+        Email: r?.Email ?? r?.fields?.Email ?? '',
+      }));
+
+    const normalizeExercises = (arr) =>
+      (arr ?? []).map(r => ({
+        id: r?.id ?? r?.recordId ?? r?.['Record ID'] ?? r?.fields?.id ?? r?.fields?.['Record ID'],
+        Name: r?.Name ?? r?.fields?.Name ?? '',
+        Description: r?.Description ?? r?.fields?.Description ?? '',
+      }));
+
+    const normalizeAssignments = (arr) => (arr ?? []);
+
     (async () => {
       try {
+        // fetch independently so a failure in one doesn't blank the others
         const [clsRes, exsRes, asgRes] = await Promise.allSettled([
           clients.list(),
           exercises.list(),
@@ -26,38 +44,45 @@ export default function ClientManagement() {
 
         if (!mounted) return;
 
+        // Clients
         if (clsRes.status === 'fulfilled') {
-          setClientList(clsRes.value);
+          const normalized = normalizeClients(clsRes.value);
+          setClientList(normalized);
         } else {
           console.error('Error loading clients:', clsRes.reason);
-          toast('Error loading clients');
+          setClientList([]); // keep UI usable
         }
 
+        // Exercises
         if (exsRes.status === 'fulfilled') {
-          setExerciseList(exsRes.value);
+          const normalized = normalizeExercises(exsRes.value);
+          setExerciseList(normalized);
         } else {
           console.error('Error loading exercises:', exsRes.reason);
-          toast('Error loading exercises');
+          setExerciseList([]);
         }
 
+        // Assignments (optional)
         if (asgRes.status === 'fulfilled') {
-          const assigns = asgRes.value;
+          const assigns = normalizeAssignments(asgRes.value);
           const map = {};
           assigns.forEach(a => {
-            const clientId = Array.isArray(a.Client) ? a.Client[0] : a.Client;
+            // When Airtable returns linked fields as arrays of record IDs
+            const clientIdRaw = Array.isArray(a.Client) ? a.Client[0] : a.Client;
+            const clientId = clientIdRaw?.id ?? clientIdRaw; // support {id: 'rec...'} or 'rec...'
             if (!clientId) return;
             (map[clientId] ||= []).push(a);
           });
           setClientAssignments(map);
         } else {
           console.error('Error loading assignments:', asgRes.reason);
-          // Don’t block the page—just show a toast; clients/exercises still render
-          toast('Error loading assignments');
+          setClientAssignments({});
         }
       } finally {
         if (mounted) setLoading(false);
       }
     })();
+
     return () => { mounted = false; };
   }, []);
 
