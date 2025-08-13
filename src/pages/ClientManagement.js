@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import TherapistTabs from '../components/TherapistTabs';
 import { clients, exercises, assignments } from '../services/airtable';
 
 export default function ClientManagement() {
   const [clientList, setClientList] = useState([]);
   const [exerciseList, setExerciseList] = useState([]);
-  const [selectedClient, setSelectedClient] = useState('');     // client record id
-  const [selectedEx, setSelectedEx] = useState('');             // exercise record id
+  const [selectedClient, setSelectedClient] = useState(''); // client record id
+  const [selectedEx, setSelectedEx] = useState('');         // exercise record id
   const [sets, setSets] = useState(3);
   const [reps, setReps] = useState(10);
+  const [daysPerWeek, setDaysPerWeek] = useState(5);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [clientAssignments, setClientAssignments] = useState([]); // assignments for the selected client only
+  const [clientAssignments, setClientAssignments] = useState([]); // assignments for selected client
 
-  // convenience lookup
   const selectedClientInfo = useMemo(
-    () => clientList.find(c => c.id === selectedClient),
+    () => clientList.find((c) => c.id === selectedClient),
     [clientList, selectedClient]
   );
 
@@ -26,25 +27,20 @@ export default function ClientManagement() {
     setTimeout(() => setShowToast(false), 1500);
   };
 
-  // Load clients & exercises (no assignments.list() call!)
+  // Load clients & exercises (no assignments.list())
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const [cls, exs] = await Promise.all([
-          clients.list(),       // known-good in your project
-          exercises.list(),     // known-good in your project
-        ]);
-
+        const [cls, exs] = await Promise.all([clients.list(), exercises.list()]);
         if (!mounted) return;
 
-        // normalize in case the wrapper returns Airtable raw records
-        const normClients = (cls ?? []).map(r => ({
-          id: r?.id ?? r?.recordId ?? r?.fields?.id ?? r?.fields?.['Record ID'] ?? r?.Email, // fallback
+        const normClients = (cls ?? []).map((r) => ({
+          id: r?.id ?? r?.recordId ?? r?.fields?.id ?? r?.fields?.['Record ID'] ?? r?.Email,
           Name: r?.Name ?? r?.fields?.Name ?? '',
           Email: r?.Email ?? r?.fields?.Email ?? '',
         }));
-        const normExercises = (exs ?? []).map(r => ({
+        const normExercises = (exs ?? []).map((r) => ({
           id: r?.id ?? r?.recordId ?? r?.fields?.id ?? r?.fields?.['Record ID'],
           Name: r?.Name ?? r?.fields?.Name ?? '',
           Description: r?.Description ?? r?.fields?.Description ?? '',
@@ -59,10 +55,12 @@ export default function ClientManagement() {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // When a client is selected, fetch THAT client's assignments via listForClient(email)
+  // When client changes, fetch their assignments via listForClient(email)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -84,7 +82,9 @@ export default function ClientManagement() {
         if (mounted) setClientAssignments([]);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [selectedClient, selectedClientInfo]);
 
   const handleAssign = async () => {
@@ -101,18 +101,20 @@ export default function ClientManagement() {
     setSaving(true);
     try {
       await assignments.create({
-        Client: [selectedClient],   // linked field expects record id array
+        Client: [selectedClient],          // linked record id
         Exercise: [selectedEx],
         Sets: sets,
-        Reps: reps
+        Reps: reps,
+        'Days per Week': daysPerWeek,      // NEW field to Airtable
       });
 
       toast('Exercise assigned successfully!');
       setSelectedEx('');
       setSets(3);
       setReps(10);
+      setDaysPerWeek(5);
 
-      // Refresh just this client's assignments
+      // Refresh the selected client's assignments
       if (typeof assignments?.listForClient === 'function') {
         const asgs = await assignments.listForClient(email);
         setClientAssignments(asgs ?? []);
@@ -129,6 +131,7 @@ export default function ClientManagement() {
     return (
       <div className="container">
         <h2 style={{ textAlign: 'center' }}>Assign Exercises</h2>
+        <TherapistTabs />
         <div className="skeleton-card big" />
         <div className="skeleton-card" />
         <div className="skeleton-card" />
@@ -139,31 +142,35 @@ export default function ClientManagement() {
 
   return (
     <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ margin: 0, textAlign: 'center', flex: 1 }}>Assign Exercises</h2>
-        <a className="btn" href="/dashboard" style={{ marginLeft: 12, whiteSpace: 'nowrap' }}>
-          ← Back to Client Summary
-        </a>
-      </div>
+      <h2 style={{ textAlign: 'center' }}>Assign Exercises</h2>
+      <TherapistTabs />
 
       {/* Assignment Form */}
       <div className="card" style={{ marginBottom: 'var(--sp-4)' }}>
         <h3 style={{ margin: '0 0 var(--sp-4)' }}>New Assignment</h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-          {/* Client Selection */}
+          {/* Client */}
           <div>
-            <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: 'var(--sp-2)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'var(--text)',
+              }}
+            >
               Select Client *
             </label>
             <select
               className="select"
               aria-label="Select client"
               value={selectedClient}
-              onChange={e => setSelectedClient(e.target.value)}
+              onChange={(e) => setSelectedClient(e.target.value)}
             >
               <option value="">-- Select a client --</option>
-              {clientList.map(c => (
+              {clientList.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.Name} ({c.Email})
                 </option>
@@ -171,19 +178,27 @@ export default function ClientManagement() {
             </select>
           </div>
 
-          {/* Exercise Selection */}
+          {/* Exercise */}
           <div>
-            <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: 'var(--sp-2)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'var(--text)',
+              }}
+            >
               Select Exercise *
             </label>
             <select
               className="select"
               aria-label="Select exercise"
               value={selectedEx}
-              onChange={e => setSelectedEx(e.target.value)}
+              onChange={(e) => setSelectedEx(e.target.value)}
             >
               <option value="">-- Select an exercise --</option>
-              {exerciseList.map(ex => (
+              {exerciseList.map((ex) => (
                 <option key={ex.id} value={ex.id}>
                   {ex.Name}
                 </option>
@@ -191,10 +206,18 @@ export default function ClientManagement() {
             </select>
           </div>
 
-          {/* Sets and Reps */}
-          <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+          {/* Sets / Reps / Days per Week */}
+          <div className="triple-row">
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: 'var(--sp-2)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: 'var(--text)',
+                }}
+              >
                 Sets
               </label>
               <input
@@ -202,12 +225,20 @@ export default function ClientManagement() {
                 type="number"
                 value={sets}
                 min={1}
-                onChange={e => setSets(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                onChange={(e) => setSets(Math.max(1, parseInt(e.target.value, 10) || 1))}
               />
             </div>
 
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: 'var(--sp-2)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: 'var(--sp-2)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: 'var(--text)',
+                }}
+              >
                 Reps
               </label>
               <input
@@ -215,7 +246,32 @@ export default function ClientManagement() {
                 type="number"
                 value={reps}
                 min={1}
-                onChange={e => setReps(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                onChange={(e) => setReps(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              />
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: 'var(--sp-2)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: 'var(--text)',
+                }}
+              >
+                Days per Week
+              </label>
+              <input
+                className="input"
+                type="number"
+                value={daysPerWeek}
+                min={1}
+                max={7}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  setDaysPerWeek(Math.min(7, Math.max(1, isNaN(v) ? 1 : v)));
+                }}
               />
             </div>
           </div>
@@ -232,7 +288,7 @@ export default function ClientManagement() {
         </div>
       </div>
 
-      {/* Selected Client's Current Assignments */}
+      {/* Selected Client Assignments */}
       {selectedClient && selectedClientInfo && (
         <div>
           <div className="card" style={{ marginBottom: '12px' }}>
@@ -245,24 +301,48 @@ export default function ClientManagement() {
           </div>
 
           {clientAssignments.length === 0 ? (
-            <div style={{ padding: 'var(--sp-6)', textAlign: 'center', color: 'var(--muted)', background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid #e5e7eb' }}>
+            <div
+              style={{
+                padding: 'var(--sp-6)',
+                textAlign: 'center',
+                color: 'var(--muted)',
+                background: 'var(--card)',
+                borderRadius: 'var(--radius)',
+                border: '1px solid #e5e7eb',
+              }}
+            >
               No exercises assigned yet. Assign one above!
             </div>
           ) : (
             <div>
-              {clientAssignments.map(assignment => {
-                // In case Airtable links come as objects/ids
-                const exIdRaw = Array.isArray(assignment.Exercise) ? assignment.Exercise[0] : assignment.Exercise;
+              {clientAssignments.map((assignment) => {
+                const exIdRaw = Array.isArray(assignment.Exercise)
+                  ? assignment.Exercise[0]
+                  : assignment.Exercise;
                 const exId = exIdRaw?.id ?? exIdRaw;
-                const exercise = exerciseList.find(ex => ex.id === exId);
+                const exercise = exerciseList.find((ex) => ex.id === exId);
 
                 return (
-                  <div key={assignment.id} className="exercise-card" style={{ padding: 'var(--sp-4)', margin: '0 0 var(--sp-2)', background: 'var(--card)', border: '2px solid #dee2e6', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)' }}>
+                  <div
+                    key={assignment.id}
+                    className="exercise-card"
+                    style={{
+                      padding: 'var(--sp-4)',
+                      margin: '0 0 var(--sp-2)',
+                      background: 'var(--card)',
+                      border: '2px solid #dee2e6',
+                      borderRadius: 'var(--radius)',
+                      boxShadow: 'var(--shadow)',
+                    }}
+                  >
                     <h3 style={{ margin: '0 0 4px' }}>
                       {exercise ? exercise.Name : 'Unknown Exercise'}
                     </h3>
                     <p style={{ margin: 0, color: 'var(--muted)', fontSize: 14 }}>
                       {assignment.Sets} sets × {assignment.Reps} reps
+                      {typeof assignment['Days per Week'] === 'number'
+                        ? ` · ${assignment['Days per Week']}d/wk`
+                        : ''}
                     </p>
                   </div>
                 );
@@ -275,7 +355,13 @@ export default function ClientManagement() {
       {/* Overview */}
       <div className="card" style={{ marginTop: 'var(--sp-6)' }}>
         <h3 style={{ margin: '0 0 16px' }}>Overview</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--sp-6)' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: 'var(--sp-6)',
+          }}
+        >
           <div>
             <p style={{ margin: 0, color: 'var(--muted)', fontSize: 14 }}>Total Clients</p>
             <p style={{ margin: '4px 0 0', fontSize: 24, fontWeight: 700, color: 'var(--primary)' }}>
@@ -306,13 +392,16 @@ export default function ClientManagement() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 9999,
-            background: toastMessage.includes('Error') || toastMessage.includes('select') ? 'var(--danger)' : 'var(--success)',
+            background:
+              toastMessage.includes('Error') || toastMessage.includes('select')
+                ? 'var(--danger)'
+                : 'var(--success)',
             color: '#fff',
             padding: 'var(--sp-3) var(--sp-4)',
             borderRadius: 'var(--radius)',
             boxShadow: 'var(--shadow)',
             fontSize: 14,
-            fontWeight: 500
+            fontWeight: 500,
           }}
           aria-live="polite"
           role="status"
@@ -320,12 +409,28 @@ export default function ClientManagement() {
           {toastMessage}
         </div>
       )}
+
+      <style>{tripleRowCss}</style>
       <style>{skeletonCss}</style>
     </div>
   );
 }
 
-/* Skeleton styles - matching ClientDashboard */
+/* Responsive triple field row */
+const tripleRowCss = `
+.triple-row{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--sp-3);
+}
+@media (max-width: 768px){
+  .triple-row{
+    grid-template-columns: 1fr;
+  }
+}
+`;
+
+/* Skeletons */
 const skeletonCss = `
 @keyframes shimmer {
   0% { background-position: -400px 0 }
@@ -338,12 +443,6 @@ const skeletonCss = `
   animation: shimmer 1.2s infinite linear;
   border-radius: 12px;
 }
-.skeleton-card {
-  height: 72px;
-  margin: 12px 0;
-}
-.skeleton-card.big {
-  height: 200px;
-  margin-top: 8px;
-}
+.skeleton-card { height: 72px; margin: 12px 0; }
+.skeleton-card.big { height: 200px; margin-top: 8px; }
 `;
