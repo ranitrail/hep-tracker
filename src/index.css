@@ -148,3 +148,22 @@ code {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(79,70,229,.15);
 }
+
+/* Therapist top tabs */
+.tabs {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: center;
+  align-items: center;
+  margin: 0 0 var(--sp-4);
+  flex-wrap: wrap;
+}
+@media (max-width: 768px) {
+  .tabs {
+    justify-content: stretch;
+  }
+  .tabs a {
+    flex: 1;
+    text-align: center;
+  }
+}
