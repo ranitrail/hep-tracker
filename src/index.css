@@ -106,18 +106,7 @@ code {
   padding: 20px;
 }
 
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background-color: #007bff;
-  color: white;
-}
-
-.btn:hover {
-  background-color: #0056b3;
-}
+/* REMOVED duplicate .btn style - now using only the one from tokens.css */
 
 .form-group {
   margin-bottom: 15px;
