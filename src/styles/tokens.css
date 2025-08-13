@@ -1,14 +1,14 @@
 :root{
   --primary:#4F46E5; --success:#10B981; --warn:#F59E0B; --danger:#EF4444;
-  --text:#111827; --muted:#6B7280; --bg:#F8FAFC; --card:#FFFFFF;
+  --text:#111827; --muted:#6B7280; --bg:#F8FAFC; --card:#FFFFFF; --track:#E9ECEF;
   --radius:12px; --shadow:0 6px 18px rgba(0,0,0,.06);
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px;
   --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  --h1: 22px; --h2: 20px; --h3: 18px; --text: 16px; /* simple scale */
+  --h1: 22px; --h2: 20px; --h3: 18px; --fs-base: 16px; /* renamed from --text to --fs-base */
 }
 
 /* App-wide font + headings */
-html, body { font-family: var(--font-sans); font-size: var(--text); color: var(--text); }
+html, body { font-family: var(--font-sans); font-size: var(--fs-base); color: var(--text); }
 h1{ font-size: var(--h1); font-weight: 700; }
 h2{ font-size: var(--h1); font-weight: 700; } /* same look for key page titles */
 h3{ font-size: var(--h3); font-weight: 600; }
@@ -38,3 +38,30 @@ button.btn:hover, .btn:hover {
 }
 
 button.btn:disabled, .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Card component styles */
+.card {
+  background: var(--card);
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--sp-6);
+}
+
+/* Badge component styles */
+.badge {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge--active {
+  background-color: rgba(16,185,129,.15);
+  color: var(--success);
+}
+
+.badge--inactive {
+  background-color: rgba(239,68,68,.15);
+  color: var(--danger);
+}
