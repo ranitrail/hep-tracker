@@ -126,3 +126,25 @@ code {
   border: 1px solid #ddd;
   border-radius: 4px;
 }
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: var(--sp-3);
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius);
+  font-size: var(--fs-base);
+  font-family: var(--font-sans);
+  background: var(--card);
+  color: var(--text);
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.15);
+}
